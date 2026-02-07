@@ -1,0 +1,2 @@
+CompileFlags:
+  Add: [-Isrc, -Isrc/naive] # Add your search paths here
