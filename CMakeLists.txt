@@ -10,7 +10,8 @@ add_compile_options(-O3 -Wall -Wextra -Wpedantic)
 
 include_directories(src)
 
-add_executable(lobook_naive
-    src/main.cpp
-    src/naive/simple_book.h
+add_executable(benchmark
+    src/engine/simple_book.h
+    src/engine/fast_book.h
+    src/benchmark.cpp
 )
