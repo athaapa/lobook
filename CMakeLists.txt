@@ -15,3 +15,9 @@ add_executable(benchmark
     src/engine/fast_book.h
     src/benchmark.cpp
 )
+
+add_executable(test_price_bitset
+    src/engine/constants.h
+    src/engine/price_bitset.h
+    tests/test_price_bitset.cpp
+)
