@@ -1,1 +1,3 @@
 # lobook
+
+## Ladder Optimization
