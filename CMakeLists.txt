@@ -27,3 +27,8 @@ add_executable(benchmark_sparse
     src/bench_fastbook_runner.cpp
     src/bench_bitsetbook_runner.cpp
 )
+
+add_executable(server
+    src/server.cpp
+)
+target_link_libraries(server PRIVATE pthread)
