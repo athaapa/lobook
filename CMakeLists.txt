@@ -21,3 +21,9 @@ add_executable(test_price_bitset
     src/engine/price_bitset.h
     tests/test_price_bitset.cpp
 )
+
+add_executable(benchmark_sparse
+    src/benchmark_sparse.cpp
+    src/bench_fastbook_runner.cpp
+    src/bench_bitsetbook_runner.cpp
+)
