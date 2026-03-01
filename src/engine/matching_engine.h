@@ -16,22 +16,31 @@ public:
     {
     }
 
+    // Q: Why are the copy constructor and copy assignment operator explicitly deleted?
     MatchingEngine(const MatchingEngine&) = delete;
     MatchingEngine& operator=(const MatchingEngine&) = delete;
 
     void start(size_t max_orders)
     {
+        // Q: Why launch the engine on a separate thread rather than running it inline
+        //    on the caller's thread?
         thread_ = std::thread([this, max_orders]() {
             run(max_orders);
         });
     }
+
     void stop()
     {
+        // Q: Why use a SHUTDOWN sentinel message to stop the thread rather than a
+        //    shared atomic<bool> flag checked in the run loop?
         queue_.push({ Type::SHUTDOWN });
         thread_.join();
     }
+
     void report()
     {
+        // Q: Why sort the latency vector before computing percentiles, rather than
+        //    maintaining a running sorted structure (e.g., a heap)?
         sort(latencies_.begin(), latencies_.end());
         size_t p50_idx = (size_t)(latencies_.size() * 0.50);
         size_t p99_idx = (size_t)(latencies_.size() * 0.99);
@@ -45,8 +54,10 @@ private:
     void run(size_t max_orders)
     {
         book_.init(max_orders);
+        // Q: Why call reserve(max_orders) on latencies_ upfront?
         latencies_.reserve(max_orders);
         while (true) {
+            // Q: Why use blocking pop() here instead of try_pop() with a spin loop?
             OrderMessage msg = queue_.pop();
 
             if (msg.type == Type::SHUTDOWN)
@@ -59,9 +70,13 @@ private:
                 book_.cancel_order(msg.id);
             }
 
+            // Q: Why use CLOCK_MONOTONIC_RAW instead of CLOCK_MONOTONIC or
+            //    CLOCK_REALTIME for latency measurement?
             timespec ts;
             clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
             uint64_t now_ns = ts.tv_sec * 1'000'000'000ULL + ts.tv_nsec;
+            // Q: Why measure latency as (now_ns - msg.timestamp) rather than timing
+            //    just the book_.submit_order / cancel_order call itself?
             latencies_.push_back(now_ns - msg.timestamp);
         }
     }

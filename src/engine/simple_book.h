@@ -13,6 +13,7 @@ struct Order {
     bool is_buy;
 };
 
+// Q: Why store an iterator in OrderLocation instead of just the price and side?
 struct OrderLocation {
     uint64_t price;
     bool is_buy;
@@ -27,9 +28,11 @@ public:
     {
         Order ord = { id, price, qty, is_buy };
 
+        // Q: Why call match() before inserting the order into the book?
         match(ord);
 
         if (ord.qty > 0) {
+            // Q: Why use std::list<Order> per price level instead of std::deque or std::vector?
             auto& list = is_buy ? bids[price] : asks[price];
             auto it = list.insert(list.end(), ord);
             order_lookup[id] = { price, is_buy, it };
@@ -46,6 +49,7 @@ public:
             } else {
                 asks[loc.price].erase(loc.itr);
             }
+            // Q: Why call order_lookup.erase(it_lookup) instead of order_lookup.erase(id)?
             order_lookup.erase(it_lookup);
         }
     }
@@ -62,19 +66,25 @@ public:
     }
 
 private:
+    // Q: Why use std::map instead of std::unordered_map for bids and asks?
+    // Q: Why does bids use std::greater<uint64_t> as a comparator but asks does not?
     std::map<uint64_t, std::list<Order>, std::greater<uint64_t>> bids;
     std::map<uint64_t, std::list<Order>> asks;
+
+    // Q: Why is order_lookup an unordered_map instead of a map?
     std::unordered_map<uint64_t, OrderLocation> order_lookup;
 
     void process_list(std::list<Order>& order_list, Order& incoming)
     {
         while (incoming.qty > 0 && !order_list.empty()) {
             Order& resting_order = order_list.front();
+            // Q: Why trade std::min(incoming.qty, resting_order.qty) instead of just incoming.qty?
             uint32_t traded_qty = std::min(incoming.qty, resting_order.qty);
             incoming.qty -= traded_qty;
             resting_order.qty -= traded_qty;
             total_trades++;
             if (resting_order.qty == 0) {
+                // Q: Why erase from order_lookup before calling pop_front()?
                 order_lookup.erase(order_lookup.find(resting_order.id));
                 order_list.pop_front();
             }
@@ -89,11 +99,13 @@ private:
                 uint64_t best_ask_price = it->first;
                 auto& order_list = it->second;
 
+                // Q: Why break here instead of continue or skip?
                 if (incoming.price < best_ask_price)
                     break;
 
                 process_list(order_list, incoming);
 
+                // Q: Why must we erase the price level from the map when its list becomes empty?
                 if (order_list.empty())
                     asks.erase(it);
             }

@@ -5,6 +5,8 @@
 #include <array>
 #include <vector>
 
+// Q: Both fast_book.h and fast_bitset_book.h define NULL_IDX — why might this cause
+//    a linker error if both headers are included in the same translation unit?
 static constexpr uint32_t NULL_IDX = UINT32_MAX;
 
 namespace Fast {
@@ -61,6 +63,8 @@ public:
             orders[next].prev = prev;
         }
 
+        // Q: Why clear the bitset bit *after* unlinking from the doubly-linked list,
+        //    and only if price_level.head is now NULL_IDX?
         if (price_level.head == NULL_IDX) {
             auto& index = order.is_buy ? bid_index : ask_index;
             index.clear(price);
@@ -87,9 +91,12 @@ public:
         auto& index = is_buy ? ask_index : bid_index;
 
         while (incoming_qty > 0) {
+            // Q: How is find_lowest()/find_highest() faster than the price-scanning
+            //    loop in FastOrderBook::match()? What is the asymptotic difference?
             auto best = is_buy ? index.find_lowest() : index.find_highest();
             if (!best)
                 break;
+            // Q: Why compare *best against incoming_price here — what does this check enforce?
             if ((is_buy && *best > incoming_price) || (!is_buy && *best < incoming_price)) {
                 break;
             }
@@ -148,6 +155,8 @@ public:
         if (level.head == NULL_IDX) {
             level.head = idx;
             level.tail = idx;
+            // Q: Why call index.set(price) only when the level goes from empty to non-empty,
+            //    rather than on every add_order call?
             index.set(price);
         } else {
             uint32_t old_tail = level.tail;
@@ -181,6 +190,7 @@ public:
 private:
     std::vector<Order> orders;
 
+    // Q: Why have separate bid_index/ask_index bitsets instead of one shared one?
     PriceBitset bid_index;
     PriceBitset ask_index;
 

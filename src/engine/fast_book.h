@@ -4,6 +4,7 @@
 #include <vector>
 #include "constants.h"
 
+// Q: Why is NULL_IDX defined as UINT32_MAX specifically?
 static constexpr uint32_t NULL_IDX = UINT32_MAX;
 
 namespace Fast {
@@ -13,13 +14,15 @@ struct Order {
     uint32_t qty;
     bool is_buy;
 
+    // Q: Why store next/prev indices (uint32_t) instead of pointers (Order*)?
     uint32_t next;
     uint32_t prev;
 };
 
 struct PriceLevel {
-    uint32_t head; // oldest;
-    uint32_t tail; // latest;
+    uint32_t head; // oldest (highest priority)
+    uint32_t tail; // latest (lowest priority)
+    // Q: Why track both head and tail? Could you get away with just head?
 };
 
 class FastOrderBook {
@@ -59,6 +62,8 @@ class FastOrderBook {
         }
 
         // Add it to the free list
+        // Q: Why reuse the `next` field of the freed order to thread the free list,
+        //    rather than keeping a separate data structure for free slots?
         order.prev = NULL_IDX;
         order.next = next_free_order_idx;
         next_free_order_idx = order_idx;
@@ -71,10 +76,13 @@ class FastOrderBook {
         return orders[id_map[id]].qty;
     }
 
+    // Q: Why do incoming_price and incoming_qty use pass-by-reference here?
     void match(uint64_t incoming_id, uint64_t &incoming_price,
                uint32_t &incoming_qty, bool is_buy) {
         auto &ladder = is_buy ? asks : bids;
 
+        // Q: Why does the buy side start scanning from price 0 and the sell side
+        //    from ladder.size()-1, rather than starting from the best available price?
         uint64_t start_price = is_buy ? 0 : (ladder.size() - 1);
         uint64_t end_price = incoming_price;
         int step = is_buy ? 1 : -1;
@@ -114,11 +122,14 @@ class FastOrderBook {
     }
 
     void add_order(uint64_t id, uint64_t price, uint32_t qty, bool is_buy) {
+        // Q: What happens if next_free_order_idx is NULL_IDX — why silently return
+        //    instead of growing the pool or signaling an error?
         if (next_free_order_idx == NULL_IDX) {
             return;
         }
 
         uint32_t idx = next_free_order_idx;
+        // Q: How does the free list "advance" to the next slot here?
         next_free_order_idx = orders[idx].next;
 
         orders[idx].id = id;
@@ -147,7 +158,10 @@ class FastOrderBook {
 
     void init(size_t max_orders) {
         orders.resize(max_orders);
+        // Q: Why does id_map have the same size as orders (max_orders), rather than
+        //    being sized by the maximum possible order ID?
         id_map.resize(max_orders);
+        // Q: Why initialize the free list by chaining order[i].next = i+1?
         for (size_t i{0}; i < max_orders; i++) {
             orders[i].next = i + 1;
         }
@@ -162,15 +176,15 @@ class FastOrderBook {
     }
 
   private:
-    std::vector<Order> orders; // Ensures that the orders are next to each other
-    std::array<PriceLevel, MAX_PRICES>
-        bids; // Price ladder for bids. Allows O(1) access (std::map has pointer
-              // chasing issue)
-    std::array<PriceLevel, MAX_PRICES> asks; // See above.
-    std::vector<uint32_t>
-        id_map; // O(1) access of order by id. Don't need a map for this because
-                // the ids are just numbers.
-    uint32_t next_free_order_idx; // Stores the free list (list of "spaces" for
-                                  // an order which are available)
+    // Q: Why use a contiguous std::vector<Order> instead of allocating each Order
+    //    with new (i.e., a pool/arena vs. per-object heap allocation)?
+    std::vector<Order> orders;
+    // Q: Why use std::array<PriceLevel, MAX_PRICES> instead of std::vector<PriceLevel>
+    //    for the price ladders?
+    std::array<PriceLevel, MAX_PRICES> bids;
+    std::array<PriceLevel, MAX_PRICES> asks;
+    // Q: Why use a vector<uint32_t> for id_map instead of std::unordered_map<uint64_t, uint32_t>?
+    std::vector<uint32_t> id_map;
+    uint32_t next_free_order_idx;
 };
 } // namespace Fast
