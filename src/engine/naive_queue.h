@@ -5,6 +5,7 @@
 #include <queue>
 
 // Q: Why is this called "NaiveQueue"? What would a faster alternative look like?
+// A (TODO)
 
 class NaiveQueue {
 public:
@@ -12,6 +13,8 @@ public:
     {
         {
             // Q: Why release the lock before calling notify_one() (i.e., why the inner braces)?
+            // A: The lock only releases after it goes out of scope. If I call notify_one() while
+            //    the lock is in scope, the pop() method will try to take control while the lock is active.
             std::lock_guard<std::mutex> lock(mtx_);
             queue_.push(msg);
         }
@@ -19,10 +22,14 @@ public:
     }
 
     // Q: Why does pop() use unique_lock while push() and try_pop() use lock_guard?
+    // A: condition_variable.wait() takes in a unique_lock rather than a lock_guard. The reason for this
+    //    is that lock_guard does not support locking and unlocking before it goes out of scope, which is
+    //    what std::condition_variable needs.
     OrderMessage pop()
     {
         std::unique_lock<std::mutex> lock(mtx_);
         // Q: Why pass a lambda predicate to wait() instead of calling wait(lock) directly?
+        // A: To ensure that the queue is not empty when we try to pop.
         cv_.wait(lock, [&] { return !queue_.empty(); });
         OrderMessage msg = queue_.front();
         queue_.pop();
@@ -41,6 +48,7 @@ public:
 
 private:
     // Q: Why std::queue and not std::deque or std::vector directly?
+    // A (TODO)
     std::queue<OrderMessage> queue_;
     std::mutex mtx_;
     std::condition_variable cv_;

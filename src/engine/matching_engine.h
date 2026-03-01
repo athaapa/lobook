@@ -17,6 +17,7 @@ public:
     }
 
     // Q: Why are the copy constructor and copy assignment operator explicitly deleted?
+    // A (TODO)
     MatchingEngine(const MatchingEngine&) = delete;
     MatchingEngine& operator=(const MatchingEngine&) = delete;
 
@@ -55,9 +56,13 @@ private:
     {
         book_.init(max_orders);
         // Q: Why call reserve(max_orders) on latencies_ upfront?
+        // A: std::vector is a dynamic array. We call .reserve() to
+        //    ensure that this allocation does not happen while we are
+        //    measuring latency because it might influence the results.
         latencies_.reserve(max_orders);
         while (true) {
             // Q: Why use blocking pop() here instead of try_pop() with a spin loop?
+            // A (TODO)
             OrderMessage msg = queue_.pop();
 
             if (msg.type == Type::SHUTDOWN)
@@ -72,11 +77,13 @@ private:
 
             // Q: Why use CLOCK_MONOTONIC_RAW instead of CLOCK_MONOTONIC or
             //    CLOCK_REALTIME for latency measurement?
+            // A (TODO)
             timespec ts;
             clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
             uint64_t now_ns = ts.tv_sec * 1'000'000'000ULL + ts.tv_nsec;
             // Q: Why measure latency as (now_ns - msg.timestamp) rather than timing
             //    just the book_.submit_order / cancel_order call itself?
+            // A: I want to test the end-to-end latency of the entire networking/matching process.
             latencies_.push_back(now_ns - msg.timestamp);
         }
     }
