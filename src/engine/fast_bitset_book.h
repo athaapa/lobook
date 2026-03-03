@@ -69,9 +69,10 @@ public:
 
         // Q: Why clear the bitset bit *after* unlinking from the doubly-linked list,
         //    and only if price_level.head is now NULL_IDX?
-        // A: We only want to clear the bitset bit if there are no more active orders at this price level.
-        //    We do this after unlinking because then we can simply check price_level.head to see if there are any
-        //    orders at this price_level.
+        // A: We only want to clear the bitset bit if there are no more active orders at this price
+        // level.
+        //    We do this after unlinking because then we can simply check price_level.head to see if
+        //    there are any orders at this price_level.
         if (price_level.head == NULL_IDX) {
             auto& index = order.is_buy ? bid_index : ask_index;
             index.clear(price);
@@ -91,8 +92,7 @@ public:
         return orders[id_map[id]].qty;
     }
 
-    void match(uint64_t incoming_id, uint64_t& incoming_price,
-        uint32_t& incoming_qty, bool is_buy)
+    void match(uint64_t incoming_id, uint64_t& incoming_price, uint32_t& incoming_qty, bool is_buy)
     {
         auto& levels = is_buy ? ask_levels : bid_levels;
         auto& index = is_buy ? ask_index : bid_index;
@@ -100,12 +100,14 @@ public:
         while (incoming_qty > 0) {
             // Q: How is find_lowest()/find_highest() faster than the price-scanning
             //    loop in FastOrderBook::match()? What is the asymptotic difference?
-            // A: find_lowest() and find_highest() operate in O(1) time whereas FastOrderBook::match() is in O(MAX_PRICES) time.
+            // A: find_lowest() and find_highest() operate in O(1) time whereas
+            // FastOrderBook::match() is in O(MAX_PRICES) time.
             auto best = is_buy ? index.find_lowest() : index.find_highest();
             if (!best)
                 break;
             // Q: Why compare *best against incoming_price here — what does this check enforce?
-            // A: We want to ensure that there exists outstanding orders that could fulfill the incoming orders.
+            // A: We want to ensure that there exists outstanding orders that could fulfill the
+            // incoming orders.
             if ((is_buy && *best > incoming_price) || (!is_buy && *best < incoming_price)) {
                 break;
             }

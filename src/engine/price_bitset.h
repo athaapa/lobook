@@ -50,7 +50,8 @@ public:
 
         uint32_t l2_idx = price_idx / 64;
         // Q: Why is the cast to uint64_t necessary before the left shift?
-        // A: For safety. Integers are not guaranteed to be 64 bits, but price_idx % 64 is guaranteed
+        // A: For safety. Integers are not guaranteed to be 64 bits, but price_idx % 64 is
+        // guaranteed
         //    to be within 0 and 63. If price_idx % 64 > 31 bits it coud lead to overflow.
         uint64_t l2_bit_mask = static_cast<uint64_t>(1) << (price_idx % 64);
         l2[l2_idx] |= l2_bit_mask;
@@ -73,8 +74,10 @@ public:
 
         // Q: Why do we only propagate a clear upward to l1/l0 conditionally (when the
         //    lower level word becomes zero), rather than always clearing the parent bit?
-        // A: Each parent level is dependent on its child level. Therefore, it makes most sense
-        //    to check the lowest level and update upstream.
+        // A: A parent bit being 1 means "at least one child bit is still set. If you always cleared
+        // the parent whenever any child bit was cleared,
+        //    you'd prematurely mark a group as empty even though other prices in
+        //    that same word still have orders.
         if (l2[l2_idx] == 0) {
             uint32_t l1_idx = l2_idx / 64;
             uint64_t l1_bit_mask = static_cast<uint64_t>(1) << (l2_idx % 64);
@@ -127,8 +130,9 @@ public:
         // Q: What does __builtin_ctzll do, and why does it give the lowest set bit
         //    directly without any subtraction?
         // A: __builtin_ctlll counts the number of trailing zeros in the binary representation
-        //    of an integer. It doesn't need any subtraction because trailing zeros implicitly gives you
-        //    the index.
+        //    of an integer. It doesn't need any subtraction because trailing zeros implicitly gives
+        //    you the index. The count of trailing zeros is the bit position of the lowest set bit
+        //    by definition (bit 0 = 0 trailing zeros, bit 1 = 1 trailing zero, etc.).
         int l1_idx = __builtin_ctzll(l0);
         int l2_idx = (l1_idx * 64) + __builtin_ctzll(l1[l1_idx]);
         return static_cast<uint32_t>((64 * l2_idx) + __builtin_ctzll(l2[l2_idx]));

@@ -5,7 +5,10 @@
 #include <queue>
 
 // Q: Why is this called "NaiveQueue"? What would a faster alternative look like?
-// A (TODO)
+// A: The goal is to make an SPSC (Single Producer Single Consumer) queue. That way,
+//    we will never have any sleeping threads. We want every cycle to count. Right now,
+//    we have mutexes and guards that prevent data races, but if we have SPSC, we don't
+//    need that (since we only have a single producer and a single consumer).
 
 class NaiveQueue {
 public:

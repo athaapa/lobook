@@ -28,15 +28,22 @@ public:
     {
         // Q: Why launch the engine on a separate thread rather than running it inline
         //    on the caller's thread?
-        thread_ = std::thread([this, max_orders]() {
-            run(max_orders);
-        });
+        // A: The engine and the producer need to be able to run concurrently. The engine sleeps
+        // when the queue is empty. If you ran the engine and the producer on the same thread, you
+        // would never be able to send any orders. The producer needs to be able to push messages
+        // while the engine processes them.
+        thread_ = std::thread([this, max_orders]() { run(max_orders); });
     }
 
     void stop()
     {
         // Q: Why use a SHUTDOWN sentinel message to stop the thread rather than a
         //    shared atomic<bool> flag checked in the run loop?
+        // A: An atomic<bool> flag would only be read _after_ the thread awakens to process a
+        // message. If the queue is empty and you set the fflag, it would never get read. The
+        // sentinel message fixes this by going through the queue itself. The flag approach could
+        // work but you would need to call cv_.notify_one() at which point you've essentially just
+        // recreated the sentinel pattern.
         queue_.push({ Type::SHUTDOWN });
         thread_.join();
     }
@@ -45,6 +52,12 @@ public:
     {
         // Q: Why sort the latency vector before computing percentiles, rather than
         //    maintaining a running sorted structure (e.g., a heap)?
+        // A:  report() is called once, after all orders have been processed, completely outside the
+        // hot path. Sorting at that point costs O(n log n) but has no impact on the latency numbers
+        // you collected. By contrast, inserting into a heap or sorted structure on every message
+        // would add overhead to every single iteration of the engine loop — which is exactly the
+        // code you're trying to measure. You'd be polluting your own latency numbers by doing extra
+        // work during measurement.
         sort(latencies_.begin(), latencies_.end());
         size_t p50_idx = (size_t)(latencies_.size() * 0.50);
         size_t p99_idx = (size_t)(latencies_.size() * 0.99);

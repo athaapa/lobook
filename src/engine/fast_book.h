@@ -78,8 +78,8 @@ public:
         // Add it to the free list
         // Q: Why reuse the `next` field of the freed order to thread the free list,
         //    rather than keeping a separate data structure for free slots?
-        // A: We are using an intrusive linked list because it removes the memory
-        //    overhead of having to keep an entire node instance.
+        // A: We are using an intrusive linked list because it allows us to reuse already-allocated
+        // memory for the free list, so we don't need any extra data structures.
         order.prev = NULL_IDX;
         order.next = next_free_order_idx;
         next_free_order_idx = order_idx;
@@ -96,8 +96,7 @@ public:
     // Q: Why do incoming_price and incoming_qty use pass-by-reference here?
     // A: Because they get modified inside of the match method and those modifications
     //    need to be reflected outside the scope of the function (particularly for partial fills).
-    void match(uint64_t incoming_id, uint64_t& incoming_price,
-        uint32_t& incoming_qty, bool is_buy)
+    void match(uint64_t incoming_id, uint64_t& incoming_price, uint32_t& incoming_qty, bool is_buy)
     {
         auto& ladder = is_buy ? asks : bids;
 
@@ -191,8 +190,8 @@ public:
         orders.resize(max_orders);
         // Q: Why does id_map have the same size as orders (max_orders), rather than
         //    being sized by the maximum possible order ID?
-        // A: There are only as many ids as there are orders. There's no point in
-        //    having an id_map with space for more ids than there ever will be orders.
+        // A: In this design, I assume IDs are assigned sequentially from 0, so IDs will never
+        // exceed max_orders.
         id_map.resize(max_orders);
         // Q: Why initialize the free list by chaining order[i].next = i+1?
         // A: It initializes the free list to be the entire orders vector.

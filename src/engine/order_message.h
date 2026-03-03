@@ -2,9 +2,12 @@
 #include <cstdint>
 
 // Q: Why use enum class instead of a plain enum?
-// A (TODO)
+// A: Plain enums export their enumerators into the surrounding scope, causing namespace
+//    pollution. Enum class scopes its enumerators within the enumerator itself.
 // Q: Why explicitly set the underlying type to uint8_t?
-// A (TODO)
+// A: We want to be explicit about the wire format since we are sending OrderMessage over network/writing to shared memory.
+//    Another reason is that we don't need to use more space than we need to. On most systems, the enum will default to a 4 byte
+//    integer, but we don't need that much, so we can do with a 1 byte integer.
 enum class Type : uint8_t {
     SUBMIT,
     CANCEL,

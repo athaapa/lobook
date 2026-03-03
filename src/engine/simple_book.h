@@ -119,7 +119,7 @@ private:
                 auto& order_list = it->second;
 
                 // Q: Why break here instead of continue or skip?
-                // A (TODO): std::map is sorted, so if the order with the best ask price
+                // A: std::map is sorted, so if the order with the best ask price
                 //           can't fulfill the order, no order can.
                 if (incoming.price < best_ask_price)
                     break;
