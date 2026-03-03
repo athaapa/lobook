@@ -1,1 +1,4 @@
 BasedOnStyle: WebKit
+ColumnLimit: 100
+ReflowComments: true    
+
