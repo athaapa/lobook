@@ -5,10 +5,10 @@
 #include <queue>
 
 // Q: Why is this called "NaiveQueue"? What would a faster alternative look like?
-// A: The goal is to make an SPSC (Single Producer Single Consumer) queue. That way,
-//    we will never have any sleeping threads. We want every cycle to count. Right now,
-//    we have mutexes and guards that prevent data races, but if we have SPSC, we don't
-//    need that (since we only have a single producer and a single consumer).
+// A: The goal is to make an SPSC (Single Producer Single Consumer) queue. That way, we will never
+// have any sleeping threads. We want every cycle to count. Right now, we have mutexes and guards
+// that prevent data races, but if we have SPSC, we don't need that (since we only have a single
+// producer and a single consumer).
 
 class NaiveQueue {
 public:
@@ -17,7 +17,8 @@ public:
         {
             // Q: Why release the lock before calling notify_one() (i.e., why the inner braces)?
             // A: The lock only releases after it goes out of scope. If I call notify_one() while
-            //    the lock is in scope, the pop() method will try to take control while the lock is active.
+            //    the lock is in scope, the pop() method will try to take control while the lock is
+            //    active.
             std::lock_guard<std::mutex> lock(mtx_);
             queue_.push(msg);
         }
@@ -25,9 +26,10 @@ public:
     }
 
     // Q: Why does pop() use unique_lock while push() and try_pop() use lock_guard?
-    // A: condition_variable.wait() takes in a unique_lock rather than a lock_guard. The reason for this
-    //    is that lock_guard does not support locking and unlocking before it goes out of scope, which is
-    //    what std::condition_variable needs.
+    // A: condition_variable.wait() takes in a unique_lock rather than a lock_guard. The reason for
+    // this
+    //    is that lock_guard does not support locking and unlocking before it goes out of scope,
+    //    which is what std::condition_variable needs.
     OrderMessage pop()
     {
         std::unique_lock<std::mutex> lock(mtx_);

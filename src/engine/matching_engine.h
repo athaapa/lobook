@@ -1,4 +1,5 @@
 #pragma once
+#include "cpu_pinning.h"
 #include "fast_bitset_book.h"
 #include "naive_queue.h"
 #include "order_message.h"
@@ -9,9 +10,9 @@
 #include <thread>
 #include <vector>
 
-class MatchingEngine {
+template <typename QueueT> class MatchingEngine {
 public:
-    MatchingEngine(NaiveQueue& queue)
+    MatchingEngine(QueueT& queue)
         : queue_(queue)
     {
     }
@@ -70,6 +71,7 @@ public:
 private:
     void run(size_t max_orders)
     {
+        pin_to_core(1);
         book_.init(max_orders);
         // Q: Why call reserve(max_orders) on latencies_ upfront?
         // A: std::vector is a dynamic array. We call .reserve() to
@@ -110,7 +112,7 @@ private:
     }
 
     Fast::FastBitsetOrderBook book_;
-    NaiveQueue& queue_;
+    QueueT& queue_;
     std::thread thread_;
     std::vector<uint64_t> latencies_;
 };
