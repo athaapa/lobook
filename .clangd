@@ -1,2 +1,2 @@
 CompileFlags:
-  Add: [-Isrc, -Isrc/naive] # Add your search paths here
+  Add: [-Isrc, -Isrc/naive, -D_GNU_SOURCE] # Add your search paths here

@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Add flags for performance and warnings
-add_compile_options(-O3 -Wall -Wextra -Wpedantic)
+add_compile_options(-O3 -Wall -Wextra -Wpedantic -D_GNU_SOURCE)
 
 include_directories(src)
 
