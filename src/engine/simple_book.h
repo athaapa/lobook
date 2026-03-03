@@ -34,7 +34,9 @@ public:
 
         if (ord.qty > 0) {
             // Q: Why use std::list<Order> per price level instead of std::deque or std::vector?
-            // A (TODO)
+            // A: cancel_order needs to erase an arbitrary element by iterator. std::list gives
+            //    O(1) erase at any position given an iterator. std::vector or std::deque would
+            //    require O(n) shifting/scanning to remove an element from the middle.
             auto& list = is_buy ? bids[price] : asks[price];
             auto it = list.insert(list.end(), ord);
             order_lookup[id] = { price, is_buy, it };
@@ -81,8 +83,9 @@ private:
     std::map<uint64_t, std::list<Order>> asks;
 
     // Q: Why is order_lookup an unordered_map instead of a map?
-    // A (TODO): It's more important for order_lookup to have O(1)
-    //   lookup, search, and insertion than ay sorting.
+    // A: order_lookup is only ever accessed by exact ID — we never iterate it in sorted
+    //    order or need the best/worst price. unordered_map gives O(1) lookup, insert, and
+    //    erase without the overhead of tree rebalancing that a map would pay.
     std::unordered_map<uint64_t, OrderLocation> order_lookup;
 
     void process_list(std::list<Order>& order_list, Order& incoming)
@@ -97,7 +100,10 @@ private:
             total_trades++;
             if (resting_order.qty == 0) {
                 // Q: Why erase from order_lookup before calling pop_front()?
-                // A (TODO)
+                // A: resting_order is a reference into the list node. pop_front() destroys
+                //    that node, so accessing resting_order.id afterwards would be undefined
+                //    behavior. We read the id first (to do the lookup erase), then destroy
+                //    the node with pop_front().
                 order_lookup.erase(order_lookup.find(resting_order.id));
                 order_list.pop_front();
             }

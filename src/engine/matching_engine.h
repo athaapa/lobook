@@ -17,7 +17,10 @@ public:
     }
 
     // Q: Why are the copy constructor and copy assignment operator explicitly deleted?
-    // A (TODO)
+    // A: std::thread is not copyable, and NaiveQueue& is a reference member. If a copy were
+    //    allowed, two MatchingEngines would share the same underlying thread and queue, meaning
+    //    two engines could drive the same order book simultaneously — a data race. Explicit
+    //    deletion makes the intent clear and gives a better compiler error.
     MatchingEngine(const MatchingEngine&) = delete;
     MatchingEngine& operator=(const MatchingEngine&) = delete;
 
@@ -62,7 +65,9 @@ private:
         latencies_.reserve(max_orders);
         while (true) {
             // Q: Why use blocking pop() here instead of try_pop() with a spin loop?
-            // A (TODO)
+            // A: A spin loop burns CPU cycles actively doing nothing when the queue is empty,
+            //    consuming a full core worth of resources. A blocking pop() puts the thread to
+            //    sleep and yields the CPU to other threads until work arrives.
             OrderMessage msg = queue_.pop();
 
             if (msg.type == Type::SHUTDOWN)
@@ -77,7 +82,10 @@ private:
 
             // Q: Why use CLOCK_MONOTONIC_RAW instead of CLOCK_MONOTONIC or
             //    CLOCK_REALTIME for latency measurement?
-            // A (TODO)
+            // A: CLOCK_REALTIME can jump backwards due to NTP adjustments. CLOCK_MONOTONIC
+            //    is monotonic but NTP can still gradually slew (speed up or slow) its rate.
+            //    CLOCK_MONOTONIC_RAW reads the raw hardware counter with zero NTP influence,
+            //    giving the most stable nanosecond-accurate ticks for latency measurement.
             timespec ts;
             clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
             uint64_t now_ns = ts.tv_sec * 1'000'000'000ULL + ts.tv_nsec;

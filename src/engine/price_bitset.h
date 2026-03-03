@@ -17,14 +17,18 @@ namespace Fast {
 //    highest and the lowest price levels with at least one order. If we used a flat bitset,
 //    it would just be O(N) again.
 // Q: Why are there exactly 3 levels rather than 2 or 4?
-// A (TODO): If we had 2 levels, The second layer would be 100k / 64 = 1563 chunks. We would need to scan through
-//    at most 1563 bits to find an active chunk. That's still O(N) for sparse workloads.
+// A: With 2 levels the summary layer has 100k/64 = 1563 words — still O(N) to scan.
+//    A third level compresses those 1563 words into ceil(1563/64) = 25 words, which
+//    then fits into a single l0 word (64 bits). So find_highest/lowest always does
+//    exactly 3 fixed-depth lookups — O(1) regardless of how many prices are active.
 
 class PriceBitset {
 public:
     static constexpr size_t BLOCK_SIZE = 64;
     // Q: Why is the formula (MAX_PRICES + BLOCK_SIZE - 1) / BLOCK_SIZE used for rounding up?
-    // A (TODO)
+    // A: Integer division truncates. (7 / 4 = 1, but we need 2 blocks to hold 7 items).
+    //    Adding (BLOCK_SIZE - 1) before dividing forces a round-up: (7 + 3) / 4 = 2.
+    //    This is the standard ceiling division idiom: ceil(a/b) = (a + b - 1) / b.
     static constexpr size_t L2_BLOCKS = (MAX_PRICES + BLOCK_SIZE - 1) / BLOCK_SIZE;
     static constexpr size_t L1_BLOCKS = (L2_BLOCKS + BLOCK_SIZE - 1) / BLOCK_SIZE;
 
@@ -32,7 +36,8 @@ public:
     {
         l0 = 0;
         // Q: Why use std::memset to zero the arrays instead of = {} or std::fill?
-        // A (TODO): I think std::memset is faster.
+        // A: std::memset is typically implemented with vectorized SIMD instructions and is highly
+        //           optimized for bulk zeroing.
         std::memset(l1, 0, sizeof(l1));
         std::memset(l2, 0, sizeof(l2));
     }

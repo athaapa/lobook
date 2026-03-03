@@ -7,7 +7,10 @@
 
 // Q: Both fast_book.h and fast_bitset_book.h define NULL_IDX — why might this cause
 //    a linker error if both headers are included in the same translation unit?
-// A (TODO)
+// A: It actually won't here, because static constexpr has internal linkage — each
+//    translation unit gets its own private copy, so there's no ODR violation.
+//    The real issue is duplication: if the value ever changed in one file but not
+//    the other, you'd have a silent bug. It should be defined once in a shared header.
 static constexpr uint32_t NULL_IDX = UINT32_MAX;
 
 namespace Fast {

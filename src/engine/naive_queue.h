@@ -29,7 +29,10 @@ public:
     {
         std::unique_lock<std::mutex> lock(mtx_);
         // Q: Why pass a lambda predicate to wait() instead of calling wait(lock) directly?
-        // A: To ensure that the queue is not empty when we try to pop.
+        // A: To guard against spurious wakeups — the OS can wake a sleeping thread even when
+        //    notify_one() was never called. Without the predicate, pop() would proceed on an
+        //    empty queue and crash. The predicate-based overload re-checks the condition after
+        //    every wakeup and goes back to sleep if it's still false.
         cv_.wait(lock, [&] { return !queue_.empty(); });
         OrderMessage msg = queue_.front();
         queue_.pop();
@@ -48,7 +51,10 @@ public:
 
 private:
     // Q: Why std::queue and not std::deque or std::vector directly?
-    // A (TODO)
+    // A: A FIFO queue needs two cheap operations: push to the back, pop from the front.
+    //    std::deque (which std::queue adapts) gives O(1) for both. std::vector is O(n)
+    //    for pop_front (it must shift all elements). std::queue wraps std::deque and
+    //    restricts the interface to only the operations a queue actually needs.
     std::queue<OrderMessage> queue_;
     std::mutex mtx_;
     std::condition_variable cv_;

@@ -5,7 +5,10 @@
 #include <vector>
 
 // Q: Why is NULL_IDX defined as UINT32_MAX specifically?
-// A (TODO)
+// A: UINT32_MAX is a value that can never be a valid pool index — the pool is sized to
+//    max_orders which will always be far less than 4 billion. It's also the value produced
+//    by a uint32_t overflow, making bugs easy to spot. Using 0 would be dangerous because
+//    0 is a valid index.
 static constexpr uint32_t NULL_IDX = UINT32_MAX;
 
 namespace Fast {
@@ -16,7 +19,11 @@ struct Order {
     bool is_buy;
 
     // Q: Why store next/prev indices (uint32_t) instead of pointers (Order*)?
-    // A (TODO)
+    // A: Two reasons. First, a pointer is 8 bytes on a 64-bit machine vs 4 bytes for
+    //    uint32_t — smaller struct means more orders fit in a cache line. Second,
+    //    if the orders vector is ever resized, all raw pointers would be invalidated
+    //    (the vector may reallocate to a different address), causing dangling pointers.
+    //    Indices into the vector remain valid regardless of reallocation.
     uint32_t next;
     uint32_t prev;
 };
@@ -141,7 +148,9 @@ public:
     {
         // Q: What happens if next_free_order_idx is NULL_IDX — why silently return
         //    instead of growing the pool or signaling an error?
-        // A (TODO)
+        // A: This is a fixed-capacity system by design. Growing the pool would require
+        //    a heap allocation in the hot path which would be unacceptable for latency.
+        //    The expectation is that the caller sizes the pool appropriately upfront.
         if (next_free_order_idx == NULL_IDX) {
             return;
         }
@@ -209,7 +218,10 @@ private:
     std::vector<Order> orders;
     // Q: Why use std::array<PriceLevel, MAX_PRICES> instead of std::vector<PriceLevel>
     //    for the price ladders?
-    // A (TODO)
+    // A: MAX_PRICES is a compile-time constant, so the size is known at compile time.
+    //    std::array allocates on the stack (or statically), avoids heap allocation entirely,
+    //    and has zero runtime overhead. std::vector would heap-allocate and add an
+    //    indirection through a pointer.
     std::array<PriceLevel, MAX_PRICES> bids;
     std::array<PriceLevel, MAX_PRICES> asks;
     // Q: Why use a vector<uint32_t> for id_map instead of std::unordered_map<uint64_t, uint32_t>?
