@@ -65,9 +65,6 @@ public:
         // would add overhead to every single iteration of the engine loop — which is exactly the
         // code you're trying to measure. You'd be polluting your own latency numbers by doing extra
         // work during measurement.
-        for (int i = 0; i < 10 && i < latencies_.size(); i++) {
-            std::cout << "msg " << i << ": " << latencies_[i] << " ns\n";
-        }
         sort(latencies_.begin(), latencies_.end());
         size_t p50_idx = (size_t)(latencies_.size() * 0.50);
         size_t p99_idx = (size_t)(latencies_.size() * 0.99);
