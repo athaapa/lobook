@@ -22,8 +22,9 @@ int main()
         workload.push_back({ Type::SUBMIT, (uint64_t)i, 100, 10, true });
     }
 
-    std::thread network_thread = std::thread([&queue, &workload]() {
+    std::thread network_thread = std::thread([&queue, &workload, &engine]() {
         pin_to_core(2);
+        engine.wait_until_ready();
         for (auto msg : workload) {
             timespec ts;
             clock_gettime(CLOCK_MONOTONIC_RAW, &ts);

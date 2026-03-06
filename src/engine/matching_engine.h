@@ -4,6 +4,7 @@
 #include "naive_queue.h"
 #include "order_message.h"
 #include <algorithm>
+#include <atomic>
 #include <cstdio>
 #include <ctime>
 #include <iostream>
@@ -24,6 +25,11 @@ public:
     //    deletion makes the intent clear and gives a better compiler error.
     MatchingEngine(const MatchingEngine&) = delete;
     MatchingEngine& operator=(const MatchingEngine&) = delete;
+
+    void wait_until_ready()
+    {
+        while (!ready_.load(std::memory_order_acquire)) { }
+    }
 
     void start(size_t max_orders)
     {
@@ -81,6 +87,7 @@ private:
         //    ensure that this allocation does not happen while we are
         //    measuring latency because it might influence the results.
         latencies_.reserve(max_orders);
+        ready_.store(true, std::memory_order_release);
         while (true) {
             // Q: Why use blocking pop() here instead of try_pop() with a spin loop?
             // A: A spin loop burns CPU cycles actively doing nothing when the queue is empty,
@@ -118,4 +125,5 @@ private:
     QueueT& queue_;
     std::thread thread_;
     std::vector<uint64_t> latencies_;
+    std::atomic<bool> ready_{false};
 };
