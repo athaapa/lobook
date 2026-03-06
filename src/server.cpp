@@ -30,9 +30,13 @@ int main()
             msg.timestamp = ts.tv_sec * 1'000'000'000ULL + ts.tv_nsec;
             queue.push(msg);
 
-            volatile int x = 0;
-            for (int j = 0; j < 500; j++)
-                x = j;
+            uint64_t wait_until = msg.timestamp + 1000; // 1μs after stamp
+            while (true) {
+                timespec ts2;
+                clock_gettime(CLOCK_MONOTONIC_RAW, &ts2);
+                if (ts2.tv_sec * 1'000'000'000ULL + ts2.tv_nsec >= wait_until)
+                    break;
+            }
         }
     });
 
