@@ -122,5 +122,5 @@ private:
     QueueT& queue_;
     std::thread thread_;
     std::vector<uint64_t> latencies_;
-    std::atomic<bool> ready_{false};
+    std::atomic<bool> ready_ { false };
 };
