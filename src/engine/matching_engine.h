@@ -21,7 +21,7 @@ public:
     // Q: Why are the copy constructor and copy assignment operator explicitly deleted?
     // A: std::thread is not copyable, and NaiveQueue& is a reference member. If a copy were
     //    allowed, two MatchingEngines would share the same underlying thread and queue, meaning
-    //    two engines could drive the same order book simultaneously — a data race. Explicit
+    //    two engines could drive the same order book simultaneously (a data race). Explicit
     //    deletion makes the intent clear and gives a better compiler error.
     MatchingEngine(const MatchingEngine&) = delete;
     MatchingEngine& operator=(const MatchingEngine&) = delete;
@@ -77,7 +77,7 @@ public:
 private:
     void run(size_t max_orders)
     {
-        pin_to_core(1);
+        pin_to_core(2);
         book_.init(max_orders);
         // Q: Why call reserve(max_orders) on latencies_ upfront?
         // A: std::vector is a dynamic array. We call .reserve() to

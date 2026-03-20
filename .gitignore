@@ -62,3 +62,7 @@ analysis.txt
 # Specific executables
 lobook_debug
 lobook_profile
+
+misc/
+.ec2_instance_id
+AWSCLIV2.pkg

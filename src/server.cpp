@@ -9,8 +9,8 @@
 // Q: Why is SPSCQueue commented out in favor of NaiveQueue here, and when
 //    would you swap them?
 // A: It's purely for benchmarking purposes.
-// using Queue = SPSCQueue<131072>;
-using Queue = NaiveQueue;
+using Queue = SPSCQueue<131072>;
+// using Queue = NaiveQueue;
 
 int main()
 {
@@ -37,7 +37,7 @@ int main()
     // order of miliseconds). My aim is to measure queue latency, not queue delay. Therefore, to
     // address this, I wait for the engine to finish initializing before beginning the benchmark.
     std::thread network_thread = std::thread([&queue, &workload, &engine]() {
-        pin_to_core(2);
+        pin_to_core(3);
         engine.wait_until_ready();
         for (auto msg : workload) {
             timespec ts;
