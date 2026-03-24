@@ -8,6 +8,7 @@ Create a .gitignore file for the C++ CMake project
 
 # Prerequisites
 *.d
+.DS_Store
 
 # Compiled Object files
 *.slo

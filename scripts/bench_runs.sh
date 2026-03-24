@@ -3,7 +3,7 @@
 # Runs the server binary N times and reports mean, median, and stddev for P50/P99/P999.
 # Must be run from the build directory, e.g.: cd build && ../scripts/bench_runs.sh 10 ./server
 
-N=${1:-10}
+N=${1:-50}
 BINARY=${2:-./server}
 
 p50s=()

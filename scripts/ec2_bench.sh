@@ -4,7 +4,9 @@
 # Usage:
 #   ./scripts/ec2_bench.sh launch      — spin up instance, install deps, isolate cores
 #   ./scripts/ec2_bench.sh build       — rsync repo and build on instance
-#   ./scripts/ec2_bench.sh bench [N]   — run benchmark N times (default 10), print stats
+#   ./scripts/ec2_bench.sh bench [N] [binary]
+#       — run benchmark N times (default 10) on build/<binary> (default server_cached).
+#       binary: server_cached | server_nocached | server (alias for server_cached)
 #   ./scripts/ec2_bench.sh terminate   — terminate instance
 #
 # One-time setup:
@@ -18,7 +20,7 @@ set -euo pipefail
 KEY_NAME="lobook-bench"                # EC2 key pair name (without .pem)
 KEY_PATH="$HOME/.ssh/${KEY_NAME}.pem"  # Path to .pem file
 SECURITY_GROUP="sg-0af378a950e0e5446"  # Must allow inbound SSH (port 22)
-INSTANCE_TYPE="c5.metal"             # c5.metal for bare metal
+INSTANCE_TYPE="c5.xlarge"             # c5.metal for bare metal
 REGION="us-west-2"
 # Amazon Linux 2 (x86_64) — update if stale:
 AMI_ID="ami-0534a0fd33c655746"
@@ -106,7 +108,7 @@ cmd_build() {
         cd $REMOTE_DIR
         mkdir -p build && cd build
         cmake3 .. -DCMAKE_BUILD_TYPE=Release 2>&1 | tail -5
-        make -j\$(nproc) server
+        make -j\$(nproc) server_cached server_nocached server
         echo "Build done."
 EOF
     echo "Ready. Run: ./scripts/ec2_bench.sh bench"
@@ -114,10 +116,19 @@ EOF
 
 cmd_bench() {
     local N=${1:-10}
+    local name=${2:-server_cached}
+    case "$name" in
+        server|server_cached) name="server_cached" ;;
+        server_nocached)      name="server_nocached" ;;
+        *)
+            echo "Unknown binary: $2 (use server_cached, server_nocached, or server)" >&2
+            exit 1
+            ;;
+    esac
     IP=$(get_ip)
-    echo "=== Running benchmark $N times on $IP ==="
+    echo "=== Running $name $N times on $IP ==="
     ssh -o StrictHostKeyChecking=no -i "$KEY_PATH" "$REMOTE_USER@$IP" \
-        "bash $REMOTE_DIR/scripts/bench_runs.sh $N $REMOTE_DIR/build/server"
+        "bash $REMOTE_DIR/scripts/bench_runs.sh $N $REMOTE_DIR/build/$name"
 }
 
 cmd_terminate() {
@@ -132,10 +143,10 @@ cmd_terminate() {
 case "${1:-}" in
     launch)    cmd_launch ;;
     build)     cmd_build ;;
-    bench)     cmd_bench "${2:-10}" ;;
+    bench)     cmd_bench "${2:-10}" "${3:-}" ;;
     terminate) cmd_terminate ;;
     *)
-        echo "Usage: $0 {launch|build|bench [N]|terminate}"
+        echo "Usage: $0 {launch|build|bench [N] [server_cached|server_nocached]|terminate}"
         exit 1
         ;;
 esac
