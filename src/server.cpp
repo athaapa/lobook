@@ -38,7 +38,7 @@ int main(int argc, char* argv[])
     // order of miliseconds). My aim is to measure queue latency, not queue delay. Therefore, to
     // address this, I wait for the engine to finish initializing before beginning the benchmark.
     std::thread network_thread = std::thread([&queue, &workload, &engine, pacing_ns]() {
-        pin_to_core(3);
+        pin_to_core(0);
         engine.wait_until_ready();
         for (auto msg : workload) {
             timespec ts;
