@@ -51,8 +51,7 @@ public:
         uint32_t l2_idx = price_idx / 64;
         // Q: Why is the cast to uint64_t necessary before the left shift?
         // A: For safety. Integers are not guaranteed to be 64 bits, but price_idx % 64 is
-        // guaranteed
-        //    to be within 0 and 63. If price_idx % 64 > 31 bits it coud lead to overflow.
+        // guaranteed to be within 0 and 63. If price_idx % 64 > 31 bits it coud lead to overflow.
         uint64_t l2_bit_mask = static_cast<uint64_t>(1) << (price_idx % 64);
         l2[l2_idx] |= l2_bit_mask;
 
