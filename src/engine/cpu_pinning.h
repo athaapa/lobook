@@ -3,6 +3,11 @@
 #include <pthread.h>
 #include <sched.h>
 
+// Default benchmark placement keeps both hot threads off CPU 0, which typically
+// handles extra kernel housekeeping even on "isolated" systems.
+static constexpr int kNetworkBenchCore = 4;
+static constexpr int kMatchingBenchCore = 6;
+
 // Q: Why pin the matching engine thread to a specific core at all, rather than
 //    letting the OS scheduler place it wherever it sees fit?
 // A: 
