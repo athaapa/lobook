@@ -89,7 +89,7 @@ public:
 private:
     void run(size_t max_orders)
     {
-        pin_to_core(kMatchingBenchCore);
+        pin_to_core(matching_bench_core());
         book_.init(max_orders);
         // Q: Why call reserve(max_orders) on latencies_ upfront?
         // A: std::vector is a dynamic array. We call .reserve() to

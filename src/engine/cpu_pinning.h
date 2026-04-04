@@ -1,12 +1,38 @@
 #pragma once
+#include <cstdlib>
 #include <cstdio>
 #include <pthread.h>
 #include <sched.h>
 
-// Default benchmark placement keeps both hot threads off CPU 0, which typically
-// handles extra kernel housekeeping even on "isolated" systems.
-static constexpr int kNetworkBenchCore = 4;
-static constexpr int kMatchingBenchCore = 6;
+// These defaults preserve the original benchmark layout. Override them per host
+// with LOBOOK_NETWORK_CORE / LOBOOK_MATCHING_CORE when topology or IRQ routing
+// makes a different pair preferable.
+static constexpr int kDefaultNetworkBenchCore = 0;
+static constexpr int kDefaultMatchingBenchCore = 2;
+
+inline int configured_bench_core(const char* env_name, int default_core)
+{
+    const char* value = std::getenv(env_name);
+    if (value == nullptr || *value == '\0')
+        return default_core;
+
+    char* end = nullptr;
+    long parsed = std::strtol(value, &end, 10);
+    if (end == value || *end != '\0' || parsed < 0)
+        return default_core;
+
+    return static_cast<int>(parsed);
+}
+
+inline int network_bench_core()
+{
+    return configured_bench_core("LOBOOK_NETWORK_CORE", kDefaultNetworkBenchCore);
+}
+
+inline int matching_bench_core()
+{
+    return configured_bench_core("LOBOOK_MATCHING_CORE", kDefaultMatchingBenchCore);
+}
 
 // Q: Why pin the matching engine thread to a specific core at all, rather than
 //    letting the OS scheduler place it wherever it sees fit?
