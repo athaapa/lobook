@@ -4,9 +4,10 @@
 # Usage:
 #   ./scripts/ec2_bench.sh launch      — spin up instance, install deps, isolate cores
 #   ./scripts/ec2_bench.sh build       — rsync repo and build on instance
-#   ./scripts/ec2_bench.sh bench [N] [binary]
+#   ./scripts/ec2_bench.sh bench [N] [binary] [pacing_ns]
 #       — run benchmark N times (default 10) on build/<binary> (default server_cached).
 #       binary: server_cached | server_nocached | server (alias for server_cached)
+#       pacing_ns: producer inter-send delay in nanoseconds (default 1000)
 #   ./scripts/ec2_bench.sh terminate   — terminate instance
 #
 # One-time setup:
@@ -117,6 +118,7 @@ EOF
 cmd_bench() {
     local N=${1:-10}
     local name=${2:-server_cached}
+    local pacing=${3:-1000}
     case "$name" in
         server|server_cached) name="server_cached" ;;
         server_nocached)      name="server_nocached" ;;
@@ -126,9 +128,9 @@ cmd_bench() {
             ;;
     esac
     IP=$(get_ip)
-    echo "=== Running $name $N times on $IP ==="
+    echo "=== Running $name $N times on $IP (pacing=${pacing}ns) ==="
     ssh -o StrictHostKeyChecking=no -i "$KEY_PATH" "$REMOTE_USER@$IP" \
-        "bash $REMOTE_DIR/scripts/bench_runs.sh $N $REMOTE_DIR/build/$name"
+        "bash $REMOTE_DIR/scripts/bench_runs.sh $N $REMOTE_DIR/build/$name $pacing"
 }
 
 cmd_terminate() {
@@ -143,10 +145,10 @@ cmd_terminate() {
 case "${1:-}" in
     launch)    cmd_launch ;;
     build)     cmd_build ;;
-    bench)     cmd_bench "${2:-10}" "${3:-}" ;;
+    bench)     cmd_bench "${2:-10}" "${3:-}" "${4:-1000}" ;;
     terminate) cmd_terminate ;;
     *)
-        echo "Usage: $0 {launch|build|bench [N] [server_cached|server_nocached]|terminate}"
+        echo "Usage: $0 {launch|build|bench [N] [server_cached|server_nocached] [pacing_ns]|terminate}"
         exit 1
         ;;
 esac

@@ -12,8 +12,9 @@
 using Queue = SPSCQueue<131072>;
 // using Queue = NaiveQueue;
 
-int main()
+int main(int argc, char* argv[])
 {
+    uint64_t pacing_ns = (argc > 1) ? std::stoull(argv[1]) : 1000;
     Queue queue;
     MatchingEngine<Queue> engine(queue);
     engine.start(100'000);
@@ -36,7 +37,7 @@ int main()
     // as it was initializing, which caused the first few orders to have a huge latency (on the
     // order of miliseconds). My aim is to measure queue latency, not queue delay. Therefore, to
     // address this, I wait for the engine to finish initializing before beginning the benchmark.
-    std::thread network_thread = std::thread([&queue, &workload, &engine]() {
+    std::thread network_thread = std::thread([&queue, &workload, &engine, pacing_ns]() {
         pin_to_core(3);
         engine.wait_until_ready();
         for (auto msg : workload) {
@@ -54,7 +55,7 @@ int main()
             // Q: Why busy-spin for 1μs between sends rather than sleeping with
             //    nanosleep or usleep?
             // A: I don't want to incur the wakeup cost of after sleeping a thread.
-            uint64_t wait_until = msg.timestamp + 1000; // 1μs after stamp
+            uint64_t wait_until = msg.timestamp + pacing_ns;
             while (true) {
                 timespec ts2;
                 clock_gettime(CLOCK_MONOTONIC_RAW, &ts2);

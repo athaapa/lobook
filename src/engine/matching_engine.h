@@ -66,12 +66,24 @@ public:
         // code you're trying to measure. You'd be polluting your own latency numbers by doing extra
         // work during measurement.
         sort(latencies_.begin(), latencies_.end());
+        sort(queue_latencies_.begin(), queue_latencies_.end());
         size_t p50_idx = (size_t)(latencies_.size() * 0.50);
         size_t p99_idx = (size_t)(latencies_.size() * 0.99);
         size_t p999_idx = (size_t)(latencies_.size() * 0.999);
+
+        size_t p50_idx_pop = (size_t)(queue_latencies_.size() * 0.50);
+        size_t p99_idx_pop = (size_t)(queue_latencies_.size() * 0.99);
+        size_t p999_idx_pop = (size_t)(queue_latencies_.size() * 0.999);
+
+        std::cout << "END TO END LATENCIES:\n";
         std::cout << "p50: " << latencies_[p50_idx] << "\n";
         std::cout << "p99: " << latencies_[p99_idx] << "\n";
         std::cout << "p999: " << latencies_[p999_idx] << "\n";
+
+        std::cout << "QUEUE LATENCIES\n";
+        std::cout << "p50: " << queue_latencies_[p50_idx_pop] << "\n";
+        std::cout << "p99: " << queue_latencies_[p99_idx_pop] << "\n";
+        std::cout << "p999: " << queue_latencies_[p999_idx_pop] << "\n";
     }
 
 private:
@@ -84,6 +96,7 @@ private:
         //    ensure that this allocation does not happen while we are
         //    measuring latency because it might influence the results.
         latencies_.reserve(max_orders);
+        queue_latencies_.reserve(max_orders);
         ready_.store(true, std::memory_order_release);
         while (true) {
             // Q: Why use blocking pop() here instead of try_pop() with a spin loop?
@@ -95,26 +108,31 @@ private:
             if (msg.type == Type::SHUTDOWN)
                 break;
 
-            if (msg.type == Type::SUBMIT) {
-                book_.submit_order(msg.id, msg.price, msg.qty, msg.is_buy);
-
-            } else if (msg.type == Type::CANCEL) {
-                book_.cancel_order(msg.id);
-            }
-
             // Q: Why use CLOCK_MONOTONIC_RAW instead of CLOCK_MONOTONIC or
             //    CLOCK_REALTIME for latency measurement?
             // A: CLOCK_REALTIME can jump backwards due to NTP adjustments. CLOCK_MONOTONIC
             //    is monotonic but NTP can still gradually slew (speed up or slow) its rate.
             //    CLOCK_MONOTONIC_RAW reads the raw hardware counter with zero NTP influence,
             //    giving the most stable nanosecond-accurate ticks for latency measurement.
+            timespec ts_pop;
+            clock_gettime(CLOCK_MONOTONIC_RAW, &ts_pop);
+            uint64_t now_ns_pop = ts_pop.tv_sec * 1'000'000'000ULL + ts_pop.tv_nsec;
+
+            if (msg.type == Type::SUBMIT) {
+                book_.submit_order(msg.id, msg.price, msg.qty, msg.is_buy);
+            } else if (msg.type == Type::CANCEL) {
+                book_.cancel_order(msg.id);
+            }
+
             timespec ts;
             clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
             uint64_t now_ns = ts.tv_sec * 1'000'000'000ULL + ts.tv_nsec;
+
             // Q: Why measure latency as (now_ns - msg.timestamp) rather than timing
             //    just the book_.submit_order / cancel_order call itself?
             // A: I want to test the end-to-end latency of the entire networking/matching process.
             latencies_.push_back(now_ns - msg.timestamp);
+            queue_latencies_.push_back(now_ns_pop - msg.timestamp);
         }
     }
 
@@ -122,5 +140,6 @@ private:
     QueueT& queue_;
     std::thread thread_;
     std::vector<uint64_t> latencies_;
+    std::vector<uint64_t> queue_latencies_;
     std::atomic<bool> ready_ { false };
 };
