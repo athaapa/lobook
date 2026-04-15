@@ -132,7 +132,7 @@ namespace Fast {
                 new_index.set(new_price);
 
                 order.next = NULL_IDX;
-            } else if (new_qty > qty) {
+            } else if (new_qty > qty) { // Increasing qty resets priority
                 if (price_level.head == order_idx
                     && price_level.tail == order_idx) { // no work to be done
                     order.qty = new_qty;
