@@ -1,4 +1,8 @@
 BasedOnStyle: WebKit
 ColumnLimit: 100
 ReflowComments: true    
+NamespaceIndentation: All
 
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterFunction: false
