@@ -10,7 +10,7 @@ add_compile_options(-O3 -Wall -Wextra -Wpedantic -D_GNU_SOURCE)
 # Default: only the latency servers. Turn these ON when you need book benchmarks / tests.
 option(LOBOOK_BUILD_BENCHMARKS "Build benchmark (Naive vs Fast book)" OFF)
 option(LOBOOK_BUILD_BENCHMARK_SPARSE "Build benchmark_sparse (bitset vs array)" OFF)
-option(LOBOOK_BUILD_TESTS "Build test_price_bitset" OFF)
+option(LOBOOK_BUILD_TESTS "Build test executables" OFF)
 
 # --- SPSC + matching engine (always built) ---
 add_executable(server_cached src/server.cpp)
@@ -45,4 +45,7 @@ endif()
 if(LOBOOK_BUILD_TESTS)
   add_executable(test_price_bitset tests/test_price_bitset.cpp)
   target_include_directories(test_price_bitset PRIVATE src)
+
+  add_executable(test_replace tests/test_replace.cpp)
+  target_include_directories(test_replace PRIVATE src)
 endif()
