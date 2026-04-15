@@ -11,6 +11,16 @@ add_compile_options(-O3 -Wall -Wextra -Wpedantic -D_GNU_SOURCE)
 option(LOBOOK_BUILD_BENCHMARKS "Build benchmark (Naive vs Fast book)" OFF)
 option(LOBOOK_BUILD_BENCHMARK_SPARSE "Build benchmark_sparse (bitset vs array)" OFF)
 option(LOBOOK_BUILD_TESTS "Build test executables" OFF)
+option(LOBOOK_ENABLE_COVERAGE "Enable coverage instrumentation and report target" OFF)
+
+if(LOBOOK_ENABLE_COVERAGE)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    add_compile_options(-O0 -g --coverage)
+    add_link_options(--coverage)
+  else()
+    message(WARNING "LOBOOK_ENABLE_COVERAGE is ON, but compiler is not GCC/Clang; coverage flags were not applied.")
+  endif()
+endif()
 
 # --- SPSC + matching engine (always built) ---
 add_executable(server_cached src/server.cpp)
@@ -48,4 +58,26 @@ if(LOBOOK_BUILD_TESTS)
 
   add_executable(test_replace tests/test_replace.cpp)
   target_include_directories(test_replace PRIVATE src)
+
+  if(LOBOOK_ENABLE_COVERAGE)
+    find_program(GCOVR_BIN gcovr)
+    if(GCOVR_BIN)
+      add_custom_target(coverage
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/coverage
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+        COMMAND ${GCOVR_BIN}
+          -r ${CMAKE_SOURCE_DIR}
+          ${CMAKE_BINARY_DIR}
+          --exclude-directories tests
+          --html-details ${CMAKE_BINARY_DIR}/coverage/index.html
+          --xml ${CMAKE_BINARY_DIR}/coverage/coverage.xml
+          --print-summary
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        DEPENDS test_price_bitset test_replace
+        COMMENT "Running tests and generating coverage report"
+      )
+    else()
+      message(WARNING "gcovr not found; coverage target will not be created.")
+    endif()
+  endif()
 endif()
