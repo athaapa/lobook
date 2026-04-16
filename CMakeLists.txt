@@ -63,6 +63,14 @@ if(LOBOOK_BUILD_TESTS)
   target_include_directories(test_replace PRIVATE src)
   add_test(NAME test_replace COMMAND test_replace)
 
+  add_executable(test_cancel tests/test_cancel.cpp)
+  target_include_directories(test_cancel PRIVATE src)
+  add_test(NAME test_cancel COMMAND test_cancel)
+
+  add_executable(test_match tests/test_match.cpp)
+  target_include_directories(test_match PRIVATE src)
+  add_test(NAME test_match COMMAND test_match)
+
   if(LOBOOK_ENABLE_COVERAGE)
     find_program(GCOVR_BIN gcovr)
     if(GCOVR_BIN)
@@ -77,7 +85,7 @@ if(LOBOOK_BUILD_TESTS)
           --xml ${CMAKE_BINARY_DIR}/coverage/coverage.xml
           --print-summary
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-        DEPENDS test_price_bitset test_replace
+        DEPENDS test_price_bitset test_replace test_cancel test_match
         COMMENT "Running tests and generating coverage report"
       )
     else()
