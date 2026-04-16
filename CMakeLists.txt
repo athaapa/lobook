@@ -53,11 +53,15 @@ if(LOBOOK_BUILD_BENCHMARK_SPARSE)
 endif()
 
 if(LOBOOK_BUILD_TESTS)
+  enable_testing()
+
   add_executable(test_price_bitset tests/test_price_bitset.cpp)
   target_include_directories(test_price_bitset PRIVATE src)
+  add_test(NAME test_price_bitset COMMAND test_price_bitset)
 
   add_executable(test_replace tests/test_replace.cpp)
   target_include_directories(test_replace PRIVATE src)
+  add_test(NAME test_replace COMMAND test_replace)
 
   if(LOBOOK_ENABLE_COVERAGE)
     find_program(GCOVR_BIN gcovr)
