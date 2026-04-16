@@ -41,6 +41,9 @@ target_compile_definitions(server PRIVATE LOBOOK_SPSC_USE_CACHED_INDICES)
 if(LOBOOK_BUILD_BENCHMARKS)
   add_executable(benchmark src/benchmark.cpp)
   target_include_directories(benchmark PRIVATE src)
+
+  add_executable(benchmark_replace src/benchmark_replace.cpp)
+  target_include_directories(benchmark_replace PRIVATE src)
 endif()
 
 if(LOBOOK_BUILD_BENCHMARK_SPARSE)
