@@ -16,9 +16,8 @@
 
 #define PERF_AVAILABLE 1
 
-static long perf_event_open(struct perf_event_attr* hw_event, pid_t pid,
-    int cpu, int group_fd, unsigned long flags)
-{
+static long perf_event_open(
+    struct perf_event_attr* hw_event, pid_t pid, int cpu, int group_fd, unsigned long flags) {
     return syscall(__NR_perf_event_open, hw_event, pid, cpu, group_fd, flags);
 }
 
@@ -27,8 +26,7 @@ class PerfCounter {
     bool available_ = false;
 
 public:
-    PerfCounter(uint32_t type, uint64_t config)
-    {
+    PerfCounter(uint32_t type, uint64_t config) {
         struct perf_event_attr pe;
         memset(&pe, 0, sizeof(pe));
         pe.type = type;
@@ -40,26 +38,22 @@ public:
         fd_ = perf_event_open(&pe, 0, -1, -1, 0);
         available_ = (fd_ != -1);
     }
-    ~PerfCounter()
-    {
+    ~PerfCounter() {
         if (fd_ != -1)
             close(fd_);
     }
     bool is_available() const { return available_; }
-    void start()
-    {
+    void start() {
         if (fd_ != -1) {
             ioctl(fd_, PERF_EVENT_IOC_RESET, 0);
             ioctl(fd_, PERF_EVENT_IOC_ENABLE, 0);
         }
     }
-    void stop()
-    {
+    void stop() {
         if (fd_ != -1)
             ioctl(fd_, PERF_EVENT_IOC_DISABLE, 0);
     }
-    uint64_t read_value()
-    {
+    uint64_t read_value() {
         if (fd_ == -1)
             return 0;
         uint64_t count = 0;
@@ -70,25 +64,23 @@ public:
 
 class PerfCounters {
     PerfCounter l1d_read_miss_ { PERF_TYPE_HW_CACHE,
-        (PERF_COUNT_HW_CACHE_L1D) | (PERF_COUNT_HW_CACHE_OP_READ << 8) | (PERF_COUNT_HW_CACHE_RESULT_MISS << 16) };
+        (PERF_COUNT_HW_CACHE_L1D) | (PERF_COUNT_HW_CACHE_OP_READ << 8)
+            | (PERF_COUNT_HW_CACHE_RESULT_MISS << 16) };
     PerfCounter cache_refs_ { PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_REFERENCES };
     PerfCounter cache_misses_ { PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_MISSES };
 
 public:
-    void start_all()
-    {
+    void start_all() {
         l1d_read_miss_.start();
         cache_refs_.start();
         cache_misses_.start();
     }
-    void stop_all()
-    {
+    void stop_all() {
         l1d_read_miss_.stop();
         cache_refs_.stop();
         cache_misses_.stop();
     }
-    void print_report()
-    {
+    void print_report() {
         bool any = l1d_read_miss_.is_available() || cache_refs_.is_available();
         if (!any) {
             std::cout << "      (hw counters unavailable)\n";
@@ -96,14 +88,15 @@ public:
         }
         std::cout << std::fixed << std::setprecision(2);
         if (l1d_read_miss_.is_available())
-            std::cout << "      L1D Read Misses: " << std::setw(12) << l1d_read_miss_.read_value() << "\n";
+            std::cout << "      L1D Read Misses: " << std::setw(12) << l1d_read_miss_.read_value()
+                      << "\n";
         if (cache_refs_.is_available()) {
             uint64_t refs = cache_refs_.read_value();
             uint64_t misses = cache_misses_.read_value();
             double miss_rate = refs > 0 ? 100.0 * (double)misses / refs : 0;
             std::cout << "      Cache Refs:      " << std::setw(12) << refs << "\n";
-            std::cout << "      Cache Misses:    " << std::setw(12) << misses
-                      << "  (" << miss_rate << "%)\n";
+            std::cout << "      Cache Misses:    " << std::setw(12) << misses << "  (" << miss_rate
+                      << "%)\n";
         }
     }
 };
@@ -124,19 +117,17 @@ class Timer {
 public:
     Timer() { reset(); }
     void reset() { start_ = std::chrono::high_resolution_clock::now(); }
-    double elapsed_ms()
-    {
+    double elapsed_ms() {
         auto end = std::chrono::high_resolution_clock::now();
         return std::chrono::duration<double, std::milli>(end - start_).count();
     }
 };
 
-static void print_result(const char* label, double time_ms, int ops)
-{
+static void print_result(const char* label, double time_ms, int ops) {
     double ops_per_sec = (ops / time_ms) * 1000.0;
     std::cout << std::fixed << std::setprecision(3);
-    std::cout << "    " << std::left << std::setw(22) << label
-              << std::right << std::setw(10) << time_ms << " ms"
+    std::cout << "    " << std::left << std::setw(22) << label << std::right << std::setw(10)
+              << time_ms << " ms"
               << "    (" << std::setprecision(0) << std::setw(12) << ops_per_sec << " ops/sec)\n";
     std::cout << std::setprecision(3);
 }
@@ -148,10 +139,10 @@ struct Operation {
     uint64_t id;
     uint64_t new_price;
     uint32_t new_qty;
+    bool is_buy;
 };
 
-int main()
-{
+int main() {
     std::cout << "╔══════════════════════════════════════════════════════════════╗\n";
     std::cout << "║       REPLACE BENCHMARK: Native vs Cancel + Submit           ║\n";
     std::cout << "╠══════════════════════════════════════════════════════════════╣\n";
@@ -167,7 +158,8 @@ int main()
 
     Fast::FastBitsetOrderBook book;
     std::mt19937 rng(123);
-    std::uniform_int_distribution<uint64_t> price_dist(100, MAX_PRICES - 100);
+    std::uniform_int_distribution<uint64_t> bid_dist(100, MAX_PRICES / 2 - 1);
+    std::uniform_int_distribution<uint64_t> ask_dist(MAX_PRICES / 2, MAX_PRICES - 100);
     std::uniform_int_distribution<uint32_t> qty_dist(1, 100);
 
     constexpr int NUM_LIVE_ORDERS = 10000;
@@ -180,15 +172,18 @@ int main()
     // and scaling qty down (where native should be strictly O(1)).
     for (int i = 0; i < NUM_OPERATIONS; i++) {
         uint64_t target_id = rng() % NUM_LIVE_ORDERS;
-        uint64_t price = price_dist(rng);
+        bool is_buy = (target_id % 2) == 0;
+        uint64_t price = is_buy ? bid_dist(rng) : ask_dist(rng);
         uint32_t qty = qty_dist(rng);
-        ops.push_back({ target_id, price, qty });
+        ops.push_back({ target_id, price, qty, is_buy });
     }
 
     auto reset_book = [&]() {
         book.init(MAX_ORDERS);
         for (int i = 0; i < NUM_LIVE_ORDERS; i++) {
-            book.submit_order(i, price_dist(rng), qty_dist(rng), (i % 2) == 0);
+            bool is_buy = (i % 2) == 0;
+            uint64_t price = is_buy ? bid_dist(rng) : ask_dist(rng);
+            book.submit_order(i, price, qty_dist(rng), is_buy);
         }
     };
 
@@ -210,9 +205,9 @@ int main()
     print_result("Total Time", elapsed1, NUM_OPERATIONS);
     perf1.print_report();
 
-
     // --- Scenario B: Cancel + Submit ---
     std::cout << "\n  --- Cancel + Submit ---\n";
+    rng.seed(123);
     reset_book();
 
     PerfCounters perf2;
@@ -220,10 +215,10 @@ int main()
     Timer t2;
 
     for (const auto& op : ops) {
-        // Technically this simulates knowing whether the existing order is a buy or sell. 
+        // Technically this simulates knowing whether the existing order is a buy or sell.
         // We will assume buy=true for simplicity, since FastBook logic for inserts is symmetrical.
         book.cancel_order(op.id);
-        book.submit_order(op.id, op.new_price, op.new_qty, true); 
+        book.submit_order(op.id, op.new_price, op.new_qty, op.is_buy);
     }
 
     double elapsed2 = t2.elapsed_ms();
