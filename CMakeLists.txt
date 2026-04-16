@@ -81,6 +81,8 @@ if(LOBOOK_BUILD_TESTS)
           -r ${CMAKE_SOURCE_DIR}
           ${CMAKE_BINARY_DIR}
           --exclude-directories tests
+          --exclude ".*/fast_book.h"
+          --exclude ".*/simple_book.h"
           --html-details ${CMAKE_BINARY_DIR}/coverage/index.html
           --xml ${CMAKE_BINARY_DIR}/coverage/coverage.xml
           --print-summary
