@@ -5,6 +5,7 @@
 #include <iostream>
 #include <random>
 #include <vector>
+#include <x86intrin.h>
 
 // ---- Linux perf_event support ----
 #ifdef __linux__
@@ -210,6 +211,9 @@ int main() {
     rng.seed(123);
     reset_book();
 
+    uint64_t cancel_cycles_total = 0;
+    uint64_t submit_cycles_total = 0;
+
     PerfCounters perf2;
     perf2.start_all();
     Timer t2;
@@ -217,12 +221,23 @@ int main() {
     for (const auto& op : ops) {
         // Technically this simulates knowing whether the existing order is a buy or sell.
         // We will assume buy=true for simplicity, since FastBook logic for inserts is symmetrical.
+        uint64_t t0 = __rdtsc();
         book.cancel_order(op.id);
+        uint64_t t1 = __rdtsc();
         book.submit_order(op.id, op.new_price, op.new_qty, op.is_buy);
+        uint64_t t_end = __rdtsc();
+        cancel_cycles_total += t1 - t0;
+        submit_cycles_total += t_end - t1;
     }
 
     double elapsed2 = t2.elapsed_ms();
     perf2.stop_all();
+
+    double tsc_hz = 2.6e9; // attu Xeon Gold 6132 nominal (look up exact via /proc/cpuinfo)
+    double cancel_ns = (cancel_cycles_total / (double)NUM_OPERATIONS) / tsc_hz * 1e9;
+    double submit_ns = (submit_cycles_total / (double)NUM_OPERATIONS) / tsc_hz * 1e9;
+    std::cout << "    cancel avg: " << cancel_ns << " ns/op\n";
+    std::cout << "    submit avg: " << submit_ns << " ns/op\n";
 
     print_result("Total Time", elapsed2, NUM_OPERATIONS);
     perf2.print_report();
