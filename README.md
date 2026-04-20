@@ -1,6 +1,6 @@
 # lobook
 
-Low-latency limit order book matching engine in C++. Built as a vehicle for measurement-driven systems work — every optimization is paired with a cost model, a prediction, and a measured delta.
+Low-latency limit order book matching engine in C++.
 
 **Queue-only P50 latency: 174 ns** (EC2 c5 isolated, cached-index SPSC, 1 μs pacing). 80× faster than a mutex baseline.
 
@@ -36,8 +36,6 @@ Native replace is 2.35× faster: 1.80× fewer instructions (single lookup vs dou
 
 ## Methodology
 
-Every optimization follows a fixed loop: **cost model → numeric prediction → measure → log delta**. Predictions are recorded in `misc/predictions.md` before measurement; outcomes and corrections follow. The prediction log is the primary learning artifact — wrong predictions with a well-articulated mechanism are valued over correct ones without.
-
 Tooling: `perf_event_open` for hardware counters (cycles, instructions, IPC, L1D misses, branch mispredicts), `__rdtsc` for region-level timing, `CLOCK_MONOTONIC_RAW` for wall-clock percentiles. See `src/benchmark_replace.cpp` for a representative harness.
 
 ## Build
@@ -72,7 +70,6 @@ src/engine/           core matching engine + data structures
 src/benchmark_*.cpp   microbenchmarks (ladder, sparse, replace)
 src/server.cpp        end-to-end latency harness (producer + engine)
 tests/                correctness tests (price-time priority, crossing)
-misc/                 predictions log, progress writeup, design notes
 ```
 
 ## Target hardware
