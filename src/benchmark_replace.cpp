@@ -69,28 +69,70 @@ class PerfCounters {
             | (PERF_COUNT_HW_CACHE_RESULT_MISS << 16) };
     PerfCounter cache_refs_ { PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_REFERENCES };
     PerfCounter cache_misses_ { PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_MISSES };
+    PerfCounter instructions_ { PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS };
+    PerfCounter cycles_ { PERF_TYPE_HARDWARE, PERF_COUNT_HW_CPU_CYCLES };
+    PerfCounter branch_misses_ { PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_MISSES };
+    PerfCounter branches_ { PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_INSTRUCTIONS };
 
 public:
     void start_all() {
         l1d_read_miss_.start();
         cache_refs_.start();
         cache_misses_.start();
+        instructions_.start();
+        cycles_.start();
+        branch_misses_.start();
+        branches_.start();
     }
     void stop_all() {
         l1d_read_miss_.stop();
         cache_refs_.stop();
         cache_misses_.stop();
+        instructions_.stop();
+        cycles_.stop();
+        branch_misses_.stop();
+        branches_.stop();
     }
-    void print_report() {
-        bool any = l1d_read_miss_.is_available() || cache_refs_.is_available();
+    void print_report(uint64_t num_ops = 0) {
+        bool any = l1d_read_miss_.is_available() || cache_refs_.is_available()
+            || instructions_.is_available();
         if (!any) {
             std::cout << "      (hw counters unavailable)\n";
             return;
         }
         std::cout << std::fixed << std::setprecision(2);
-        if (l1d_read_miss_.is_available())
-            std::cout << "      L1D Read Misses: " << std::setw(12) << l1d_read_miss_.read_value()
-                      << "\n";
+        if (instructions_.is_available() && cycles_.is_available()) {
+            uint64_t insn = instructions_.read_value();
+            uint64_t cyc = cycles_.read_value();
+            double ipc = cyc > 0 ? (double)insn / (double)cyc : 0;
+            std::cout << "      Instructions:    " << std::setw(12) << insn;
+            if (num_ops > 0)
+                std::cout << "  (" << (double)insn / num_ops << " insn/op)";
+            std::cout << "\n";
+            std::cout << "      Cycles:          " << std::setw(12) << cyc;
+            if (num_ops > 0)
+                std::cout << "  (" << (double)cyc / num_ops << " cyc/op)";
+            std::cout << "\n";
+            std::cout << "      IPC:             " << std::setw(12) << ipc << "\n";
+        }
+        if (branches_.is_available() && branch_misses_.is_available()) {
+            uint64_t br = branches_.read_value();
+            uint64_t bm = branch_misses_.read_value();
+            double br_miss_rate = br > 0 ? 100.0 * (double)bm / br : 0;
+            std::cout << "      Branches:        " << std::setw(12) << br;
+            if (num_ops > 0)
+                std::cout << "  (" << (double)br / num_ops << " br/op)";
+            std::cout << "\n";
+            std::cout << "      Branch Misses:   " << std::setw(12) << bm << "  (" << br_miss_rate
+                      << "%)\n";
+        }
+        if (l1d_read_miss_.is_available()) {
+            uint64_t l1dm = l1d_read_miss_.read_value();
+            std::cout << "      L1D Read Misses: " << std::setw(12) << l1dm;
+            if (num_ops > 0)
+                std::cout << "  (" << (double)l1dm / num_ops << " miss/op)";
+            std::cout << "\n";
+        }
         if (cache_refs_.is_available()) {
             uint64_t refs = cache_refs_.read_value();
             uint64_t misses = cache_misses_.read_value();
@@ -107,7 +149,7 @@ class PerfCounters {
 public:
     void start_all() { }
     void stop_all() { }
-    void print_report() { std::cout << "      (hw counters unavailable)\n"; }
+    void print_report(uint64_t /*num_ops*/ = 0) { std::cout << "      (hw counters unavailable)\n"; }
 };
 #endif
 
@@ -204,7 +246,7 @@ int main() {
     perf1.stop_all();
 
     print_result("Total Time", elapsed1, NUM_OPERATIONS);
-    perf1.print_report();
+    perf1.print_report(NUM_OPERATIONS);
 
     // --- Scenario B: Cancel + Submit ---
     std::cout << "\n  --- Cancel + Submit ---\n";
@@ -240,7 +282,7 @@ int main() {
     std::cout << "    submit avg: " << submit_ns << " ns/op\n";
 
     print_result("Total Time", elapsed2, NUM_OPERATIONS);
-    perf2.print_report();
+    perf2.print_report(NUM_OPERATIONS);
 
     std::cout << "\n══════════════════════════════════════════════════════════════\n";
     std::cout << "Done.\n";
