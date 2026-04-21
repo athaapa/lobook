@@ -1,39 +1,49 @@
 #!/bin/bash
-# Usage: ./scripts/bench_runs.sh [N] [binary] [pacing_ns]
-# Runs the server binary N times and reports mean, median, and stddev for
-# both E2E and queue-only P50/P99/P999.
-# Must be run from the build directory, e.g.: cd build && ../scripts/bench_runs.sh 10 ./server 1000
+# Usage: ./scripts/bench_runs.sh [N] [queue_mode] [pacing_ns]
+# Runs ./server N times with the given queue mode and pacing, then reports
+# mean/median/stdev for both end-to-end and queue-only P50/P99/P999.
+#
+# queue_mode is one of: cached | uncached | naive
+#
+# Must be run from the build directory, e.g.:
+#   cd build && ../scripts/bench_runs.sh 10 cached 1000
 
-N=${1:-50}
-BINARY=${2:-./server}
+set -u
+
+N=${1:-10}
+QUEUE=${2:-cached}
 PACING_NS=${3:-1000}
+BINARY=./server
 
-e2e_p50s=()
-e2e_p99s=()
-e2e_p999s=()
-q_p50s=()
-q_p99s=()
-q_p999s=()
+if [[ ! -x "$BINARY" ]]; then
+    echo "error: $BINARY not found or not executable (run this from the build dir)" >&2
+    exit 1
+fi
+
+case "$QUEUE" in
+    cached|uncached|naive) ;;
+    *) echo "error: queue must be one of cached|uncached|naive (got '$QUEUE')" >&2; exit 1 ;;
+esac
+
+echo "config: N=$N queue=$QUEUE pacing_ns=$PACING_NS"
+echo
+
+e2e_p50s=(); e2e_p99s=(); e2e_p999s=()
+q_p50s=();   q_p99s=();   q_p999s=()
 
 for i in $(seq 1 "$N"); do
-    output=$("$BINARY" "$PACING_NS" 2>/dev/null)
+    output=$("$BINARY" "--queue=$QUEUE" "--pacing-ns=$PACING_NS" 2>/dev/null)
 
-    # E2E: lines before QUEUE LATENCIES header
     e2e_p50=$(echo  "$output" | awk '/QUEUE LATENCIES/{exit} /^p50:/{print $2}')
     e2e_p99=$(echo  "$output" | awk '/QUEUE LATENCIES/{exit} /^p99:/{print $2}')
     e2e_p999=$(echo "$output" | awk '/QUEUE LATENCIES/{exit} /^p999:/{print $2}')
 
-    # Queue-only: lines after QUEUE LATENCIES header
     q_p50=$(echo  "$output" | awk '/QUEUE LATENCIES/{found=1; next} found && /^p50:/{print $2}')
     q_p99=$(echo  "$output" | awk '/QUEUE LATENCIES/{found=1; next} found && /^p99:/{print $2}')
     q_p999=$(echo "$output" | awk '/QUEUE LATENCIES/{found=1; next} found && /^p999:/{print $2}')
 
-    e2e_p50s+=("$e2e_p50")
-    e2e_p99s+=("$e2e_p99")
-    e2e_p999s+=("$e2e_p999")
-    q_p50s+=("$q_p50")
-    q_p99s+=("$q_p99")
-    q_p999s+=("$q_p999")
+    e2e_p50s+=("$e2e_p50");   e2e_p99s+=("$e2e_p99");   e2e_p999s+=("$e2e_p999")
+    q_p50s+=("$q_p50");       q_p99s+=("$q_p99");       q_p999s+=("$q_p999")
 
     echo "run $i: e2e_p50=$e2e_p50  queue_p50=$q_p50"
 done
