@@ -1,0 +1,88 @@
+===============================================================
+  lobook benchmark: FastBook vs BitsetBook
+===============================================================
+  host         00d86115aaa0
+  cpu          AMD Ryzen 5 2600 Six-Core Processor
+  tsc freq     3.4000 GHz (calibrated)
+  isolcpus     6-11
+  kernel       6.19.10-200.fc43.x86_64
+  build        gcc 15.2.1  C++17
+===============================================================
+  max prices   100000
+  max orders   500000
+
+---------------------------------------------------------------
+  scenario 1 / sparse insert + sweep / FastBook (linear scan)
+---------------------------------------------------------------
+  setup        50 price levels x 20 orders x 200 rounds, then 1 sweeping order
+  -- insert phase
+  runtime      10520.431 ms  (0.02 M ops/s, 52602.15 ns/op)
+  -- match sweep phase
+  runtime      1.604 ms  (124.66 M ops/s, 8.02 ns/op)
+      instructions  17.41    /op   cycles  30.93   /op   IPC  0.56
+      branches      7.45     /op   misses  0.01 %
+      L1D misses    0.91     /op
+      LLC refs      1.72     /op   miss rate  4.97 %
+
+---------------------------------------------------------------
+  scenario 1 / sparse insert + sweep / BitsetBook (hierarchical bitset)
+---------------------------------------------------------------
+  setup        50 price levels x 20 orders x 200 rounds, then 1 sweeping order
+  -- insert phase
+  runtime      1.626 ms  (122.98 M ops/s, 8.13 ns/op)
+  -- match sweep phase
+  runtime      1.010 ms  (198.05 M ops/s, 5.05 ns/op)
+      instructions  11.83    /op   cycles  19.39   /op   IPC  0.61
+      branches      5.00     /op   misses  0.01 %
+      L1D misses    0.85     /op
+      LLC refs      1.57     /op   miss rate  5.55 %
+
+---------------------------------------------------------------
+  scenario 2 / wide spread / FastBook (linear scan)
+---------------------------------------------------------------
+  setup        10000 asks at top, then 10000 buys crossing 1-by-1
+  -- insert phase
+  runtime      0.142 ms  (70.25 M ops/s, 14.23 ns/op)
+  -- match phase
+  runtime      1719.131 ms  (0.01 M ops/s, 171913.05 ns/op)
+      instructions  1199681.05 /op   cycles  567422.29 /op   IPC  2.11
+      branches      428457.13 /op   misses  0.00 %
+      L1D misses    10722.27 /op
+      LLC refs      21273.50 /op   miss rate  0.85 %
+
+---------------------------------------------------------------
+  scenario 2 / wide spread / BitsetBook (hierarchical bitset)
+---------------------------------------------------------------
+  setup        10000 asks at top, then 10000 buys crossing 1-by-1
+  -- insert phase
+  runtime      0.084 ms  (118.95 M ops/s, 8.41 ns/op)
+  -- match phase
+  runtime      0.097 ms  (103.63 M ops/s, 9.65 ns/op)
+      instructions  81.07    /op   cycles  37.78   /op   IPC  2.15
+      branches      16.01    /op   misses  0.03 %
+      L1D misses    2.12     /op
+      LLC refs      4.44     /op   miss rate  0.00 %
+
+---------------------------------------------------------------
+  scenario 3 / mixed churn / FastBook (linear scan)
+---------------------------------------------------------------
+  setup        100000 ops, 70% submit / 20% cancel / 10% aggressive marketable
+  runtime      5837.463 ms  (0.02 M ops/s, 58374.63 ns/op)
+      instructions  487394.12 /op   cycles  192632.25 /op   IPC  2.53
+      branches      182778.29 /op   misses  0.00 %
+      L1D misses    3806.19  /op
+      LLC refs      7484.71  /op   miss rate  1.02 %
+
+---------------------------------------------------------------
+  scenario 3 / mixed churn / BitsetBook (hierarchical bitset)
+---------------------------------------------------------------
+  setup        100000 ops, 70% submit / 20% cancel / 10% aggressive marketable
+  runtime      4.832 ms  (20.70 M ops/s, 48.32 ns/op)
+      instructions  227.76   /op   cycles  140.54  /op   IPC  1.62
+      branches      23.06    /op   misses  5.71 %
+      L1D misses    2.69     /op
+      LLC refs      4.28     /op   miss rate  21.30 %
+
+===============================================================
+  done.
+===============================================================

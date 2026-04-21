@@ -1,0 +1,58 @@
+config: N=10 queue=uncached pacing_ns=1000
+
+run 1: e2e_p50=190  queue_p50=150
+run 2: e2e_p50=200  queue_p50=160
+run 3: e2e_p50=190  queue_p50=150
+run 4: e2e_p50=190  queue_p50=150
+run 5: e2e_p50=200  queue_p50=170
+run 6: e2e_p50=190  queue_p50=150
+run 7: e2e_p50=190  queue_p50=150
+run 8: e2e_p50=190  queue_p50=150
+run 9: e2e_p50=190  queue_p50=150
+run 10: e2e_p50=180  queue_p50=150
+
+=== END-TO-END LATENCIES ===
+
+P50
+  mean:   191 ns
+  median: 190 ns
+  stdev:  6 ns
+  min:    180 ns
+  max:    200 ns
+
+P99
+  mean:   2004 ns
+  median: 2000 ns
+  stdev:  55 ns
+  min:    1910 ns
+  max:    2080 ns
+
+P999
+  mean:   11883 ns
+  median: 6510 ns
+  stdev:  16506 ns
+  min:    3970 ns
+  max:    58570 ns
+
+=== QUEUE-ONLY LATENCIES ===
+
+P50
+  mean:   153 ns
+  median: 150 ns
+  stdev:  7 ns
+  min:    150 ns
+  max:    170 ns
+
+P99
+  mean:   1968 ns
+  median: 1970 ns
+  stdev:  52 ns
+  min:    1880 ns
+  max:    2040 ns
+
+P999
+  mean:   11788 ns
+  median: 6460 ns
+  stdev:  16521 ns
+  min:    3920 ns
+  max:    58540 ns

@@ -1,0 +1,39 @@
+===============================================================
+  lobook benchmark: replace_order vs cancel + submit
+===============================================================
+  host         00d86115aaa0
+  cpu          AMD Ryzen 5 2600 Six-Core Processor
+  tsc freq     3.4000 GHz (calibrated)
+  isolcpus     6-11
+  kernel       6.19.10-200.fc43.x86_64
+  build        gcc 15.2.1  C++17
+===============================================================
+  max prices   100000
+  max orders   100000
+  live orders  10000
+  operations   1000000
+  rng seed     123
+
+---------------------------------------------------------------
+  scenario A / native replace
+---------------------------------------------------------------
+  runtime      20.520 ms  (48.73 M ops/s, 20.52 ns/op)
+      instructions  73.99    /op   cycles  67.28   /op   IPC  1.10
+      branches      10.07    /op   misses  1.66 %
+      L1D misses    6.34     /op
+      LLC refs      9.32     /op   miss rate  23.46 %
+
+---------------------------------------------------------------
+  scenario B / cancel + submit
+---------------------------------------------------------------
+  runtime      48.417 ms  (20.65 M ops/s, 48.42 ns/op)
+      instructions  137.92   /op   cycles  158.96  /op   IPC  0.87
+      branches      17.38    /op   misses  3.41 %
+      L1D misses    6.79     /op
+      LLC refs      10.14    /op   miss rate  22.72 %
+      cancel        20.86    ns/op  (rdtsc split)
+      submit        18.09    ns/op  (rdtsc split)
+
+===============================================================
+  done.
+===============================================================
