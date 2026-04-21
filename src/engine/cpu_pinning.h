@@ -1,17 +1,14 @@
 #pragma once
 #include <cstdlib>
-#include <cstdio>
 #include <pthread.h>
 #include <sched.h>
 
-// These defaults preserve the original benchmark layout. Override them per host
-// with LOBOOK_NETWORK_CORE / LOBOOK_MATCHING_CORE when topology or IRQ routing
-// makes a different pair preferable.
+// Default core layout. Override per host with LOBOOK_NETWORK_CORE /
+// LOBOOK_MATCHING_CORE when topology or IRQ routing makes another pair better.
 static constexpr int kDefaultNetworkBenchCore = 0;
 static constexpr int kDefaultMatchingBenchCore = 2;
 
-inline int configured_bench_core(const char* env_name, int default_core)
-{
+inline int configured_bench_core(const char* env_name, int default_core) {
     const char* value = std::getenv(env_name);
     if (value == nullptr || *value == '\0')
         return default_core;
@@ -24,25 +21,22 @@ inline int configured_bench_core(const char* env_name, int default_core)
     return static_cast<int>(parsed);
 }
 
-inline int network_bench_core()
-{
+inline int network_bench_core() {
     return configured_bench_core("LOBOOK_NETWORK_CORE", kDefaultNetworkBenchCore);
 }
 
-inline int matching_bench_core()
-{
+inline int matching_bench_core() {
     return configured_bench_core("LOBOOK_MATCHING_CORE", kDefaultMatchingBenchCore);
 }
 
 // Q: Why pin the matching engine thread to a specific core at all, rather than
 //    letting the OS scheduler place it wherever it sees fit?
-// A: 
+// A:
 
 // Q: Why use pthread_setaffinity_np instead of the POSIX sched_setaffinity
 //    syscall directly?
 // A:
-void pin_to_core(int core_id)
-{
+inline void pin_to_core(int core_id) {
     cpu_set_t cpu_set;
     CPU_ZERO(&cpu_set);
     CPU_SET(core_id, &cpu_set);
