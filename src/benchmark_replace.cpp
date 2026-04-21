@@ -21,46 +21,46 @@ using lobook::bench::Timer;
 
 namespace {
 
-constexpr size_t kMaxOrders = 100'000;
-constexpr uint64_t kMaxPrices = Fast::MAX_PRICES;
-constexpr int kLiveOrders = 10'000;
-constexpr int kNumOps = 1'000'000;
-constexpr uint32_t kRngSeed = 123;
+    constexpr size_t kMaxOrders = 100'000;
+    constexpr uint64_t kMaxPrices = Fast::MAX_PRICES;
+    constexpr int kLiveOrders = 10'000;
+    constexpr int kNumOps = 1'000'000;
+    constexpr uint32_t kRngSeed = 123;
 
-struct Operation {
-    uint64_t id;
-    uint64_t new_price;
-    uint32_t new_qty;
-    bool is_buy;
-};
+    struct Operation {
+        uint64_t id;
+        uint64_t new_price;
+        uint32_t new_qty;
+        bool is_buy;
+    };
 
-// Sides occupy disjoint price ranges so cancel+submit cannot cross.
-// Bids:  [100, MAX/2 - 1].  Asks:  [MAX/2, MAX - 100].
-std::uniform_int_distribution<uint64_t> bid_dist(100, kMaxPrices / 2 - 1);
-std::uniform_int_distribution<uint64_t> ask_dist(kMaxPrices / 2, kMaxPrices - 100);
-std::uniform_int_distribution<uint32_t> qty_dist(1, 100);
+    // Sides occupy disjoint price ranges so cancel+submit cannot cross.
+    // Bids:  [100, MAX/2 - 1].  Asks:  [MAX/2, MAX - 100].
+    std::uniform_int_distribution<uint64_t> bid_dist(100, kMaxPrices / 2 - 1);
+    std::uniform_int_distribution<uint64_t> ask_dist(kMaxPrices / 2, kMaxPrices - 100);
+    std::uniform_int_distribution<uint32_t> qty_dist(1, 100);
 
-void seed_book(Fast::FastBitsetOrderBook& book, std::mt19937& rng) {
-    book.init(kMaxOrders);
-    for (int i = 0; i < kLiveOrders; ++i) {
-        bool is_buy = (i % 2) == 0;
-        uint64_t price = is_buy ? bid_dist(rng) : ask_dist(rng);
-        book.submit_order(i, price, qty_dist(rng), is_buy);
+    void seed_book(Fast::FastBitsetOrderBook& book, std::mt19937& rng) {
+        book.init(kMaxOrders);
+        for (int i = 0; i < kLiveOrders; ++i) {
+            bool is_buy = (i % 2) == 0;
+            uint64_t price = is_buy ? bid_dist(rng) : ask_dist(rng);
+            book.submit_order(i, price, qty_dist(rng), is_buy);
+        }
     }
-}
 
-std::vector<Operation> generate_ops(std::mt19937& rng) {
-    std::vector<Operation> ops;
-    ops.reserve(kNumOps);
-    for (int i = 0; i < kNumOps; ++i) {
-        uint64_t target_id = rng() % kLiveOrders;
-        bool is_buy = (target_id % 2) == 0;
-        uint64_t price = is_buy ? bid_dist(rng) : ask_dist(rng);
-        uint32_t qty = qty_dist(rng);
-        ops.push_back({ target_id, price, qty, is_buy });
+    std::vector<Operation> generate_ops(std::mt19937& rng) {
+        std::vector<Operation> ops;
+        ops.reserve(kNumOps);
+        for (int i = 0; i < kNumOps; ++i) {
+            uint64_t target_id = rng() % kLiveOrders;
+            bool is_buy = (target_id % 2) == 0;
+            uint64_t price = is_buy ? bid_dist(rng) : ask_dist(rng);
+            uint32_t qty = qty_dist(rng);
+            ops.push_back({ target_id, price, qty, is_buy });
+        }
+        return ops;
     }
-    return ops;
-}
 
 } // namespace
 

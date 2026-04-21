@@ -11,8 +11,7 @@
 //   Cached - if true, each side caches the other side's index to avoid a
 //            cross-core MESI round-trip on the common (non-empty / non-full)
 //            fast path. See the comments inside push()/pop() below.
-template <size_t N, bool Cached = true>
-class SPSCQueue {
+template <size_t N, bool Cached = true> class SPSCQueue {
     // Q: Why must N be a power of 2, and why enforce it with a static_assert
     //    rather than just documenting it?
     // A: We index slots with `idx & (N - 1)` instead of `idx % N`; the bit-mask

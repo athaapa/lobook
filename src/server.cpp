@@ -32,94 +32,94 @@
 
 namespace {
 
-constexpr size_t kQueueCapacity = 131072;
-constexpr size_t kBookOrders = 100'000;
+    constexpr size_t kQueueCapacity = 131072;
+    constexpr size_t kBookOrders = 100'000;
 
-struct Args {
-    std::string queue_mode = "cached";
-    uint64_t pacing_ns = 1000;
-    uint64_t workload = 100'000;
-};
+    struct Args {
+        std::string queue_mode = "cached";
+        uint64_t pacing_ns = 1000;
+        uint64_t workload = 100'000;
+    };
 
-void print_usage(const char* prog) {
-    std::cerr << "Usage: " << prog
-              << " [--queue=cached|uncached|naive] [--pacing-ns=N] [--workload=N]\n";
-}
+    void print_usage(const char* prog) {
+        std::cerr << "Usage: " << prog
+                  << " [--queue=cached|uncached|naive] [--pacing-ns=N] [--workload=N]\n";
+    }
 
-bool parse_args(int argc, char* argv[], Args& out) {
-    for (int i = 1; i < argc; ++i) {
-        std::string a = argv[i];
-        if (a == "--help" || a == "-h") {
-            print_usage(argv[0]);
-            std::exit(0);
-        } else if (a.rfind("--queue=", 0) == 0) {
-            out.queue_mode = a.substr(8);
-        } else if (a.rfind("--pacing-ns=", 0) == 0) {
-            out.pacing_ns = std::stoull(a.substr(12));
-        } else if (a.rfind("--workload=", 0) == 0) {
-            out.workload = std::stoull(a.substr(11));
-        } else {
-            std::cerr << "unknown argument: " << a << "\n";
+    bool parse_args(int argc, char* argv[], Args& out) {
+        for (int i = 1; i < argc; ++i) {
+            std::string a = argv[i];
+            if (a == "--help" || a == "-h") {
+                print_usage(argv[0]);
+                std::exit(0);
+            } else if (a.rfind("--queue=", 0) == 0) {
+                out.queue_mode = a.substr(8);
+            } else if (a.rfind("--pacing-ns=", 0) == 0) {
+                out.pacing_ns = std::stoull(a.substr(12));
+            } else if (a.rfind("--workload=", 0) == 0) {
+                out.workload = std::stoull(a.substr(11));
+            } else {
+                std::cerr << "unknown argument: " << a << "\n";
+                print_usage(argv[0]);
+                return false;
+            }
+        }
+        if (out.queue_mode != "cached" && out.queue_mode != "uncached"
+            && out.queue_mode != "naive") {
+            std::cerr << "invalid --queue value: " << out.queue_mode << "\n";
             print_usage(argv[0]);
             return false;
         }
-    }
-    if (out.queue_mode != "cached" && out.queue_mode != "uncached" && out.queue_mode != "naive") {
-        std::cerr << "invalid --queue value: " << out.queue_mode << "\n";
-        print_usage(argv[0]);
-        return false;
-    }
-    return true;
-}
-
-template <typename QueueT>
-void run(const Args& args) {
-    QueueT queue;
-    MatchingEngine<QueueT> engine(queue);
-    engine.start(kBookOrders);
-
-    // Q: Why pre-build the entire workload into a vector before the network
-    //    thread starts, rather than constructing each OrderMessage inline
-    //    inside the loop?
-    // A: Construction overhead would be charged against every per-op latency
-    //    sample. We want to measure queue + engine, not OrderMessage init.
-    std::vector<OrderMessage> workload;
-    workload.reserve(args.workload);
-    for (uint64_t i = 0; i < args.workload; ++i) {
-        workload.push_back({ Type::SUBMIT, i, 100, 10, true, 0 });
+        return true;
     }
 
-    std::thread network_thread([&]() {
-        pin_to_core(network_bench_core());
-        engine.wait_until_ready();
-        for (auto msg : workload) {
-            timespec ts;
-            clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
-            // Q: Why stamp the message immediately before pushing, rather than
-            //    upfront during construction?
-            // A: We want to measure queue + engine, not setup. Stamping at
-            //    push time excludes wait_until_ready() and workload init.
-            msg.timestamp = (uint64_t)ts.tv_sec * 1'000'000'000ULL + ts.tv_nsec;
-            queue.push(msg);
+    template <typename QueueT> void run(const Args& args) {
+        QueueT queue;
+        MatchingEngine<QueueT> engine(queue);
+        engine.start(kBookOrders);
 
-            // Q: Why busy-spin for pacing rather than nanosleep?
-            // A: nanosleep wake-up latency dwarfs the queue cost we're trying
-            //    to measure. Spinning is the only way to get sub-microsecond
-            //    pacing accuracy on commodity Linux.
-            uint64_t wait_until = msg.timestamp + args.pacing_ns;
-            while (true) {
-                timespec ts2;
-                clock_gettime(CLOCK_MONOTONIC_RAW, &ts2);
-                if ((uint64_t)ts2.tv_sec * 1'000'000'000ULL + ts2.tv_nsec >= wait_until)
-                    break;
-            }
+        // Q: Why pre-build the entire workload into a vector before the network
+        //    thread starts, rather than constructing each OrderMessage inline
+        //    inside the loop?
+        // A: Construction overhead would be charged against every per-op latency
+        //    sample. We want to measure queue + engine, not OrderMessage init.
+        std::vector<OrderMessage> workload;
+        workload.reserve(args.workload);
+        for (uint64_t i = 0; i < args.workload; ++i) {
+            workload.push_back({ Type::SUBMIT, i, 100, 10, true, 0 });
         }
-    });
 
-    network_thread.join();
-    engine.stop();
-    engine.report();
-}
+        std::thread network_thread([&]() {
+            pin_to_core(network_bench_core());
+            engine.wait_until_ready();
+            for (auto msg : workload) {
+                timespec ts;
+                clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+                // Q: Why stamp the message immediately before pushing, rather than
+                //    upfront during construction?
+                // A: We want to measure queue + engine, not setup. Stamping at
+                //    push time excludes wait_until_ready() and workload init.
+                msg.timestamp = (uint64_t)ts.tv_sec * 1'000'000'000ULL + ts.tv_nsec;
+                queue.push(msg);
+
+                // Q: Why busy-spin for pacing rather than nanosleep?
+                // A: nanosleep wake-up latency dwarfs the queue cost we're trying
+                //    to measure. Spinning is the only way to get sub-microsecond
+                //    pacing accuracy on commodity Linux.
+                uint64_t wait_until = msg.timestamp + args.pacing_ns;
+                while (true) {
+                    timespec ts2;
+                    clock_gettime(CLOCK_MONOTONIC_RAW, &ts2);
+                    if ((uint64_t)ts2.tv_sec * 1'000'000'000ULL + ts2.tv_nsec >= wait_until)
+                        break;
+                }
+            }
+        });
+
+        network_thread.join();
+        engine.stop();
+        engine.report();
+    }
 
 } // anonymous namespace
 

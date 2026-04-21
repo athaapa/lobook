@@ -23,7 +23,8 @@ static void test_cancel_empties_level() {
     book.submit_order(1, 100, 10, true);
     book.cancel_order(1);
 
-    // If level is not properly cleared in the index bitset, an aggressive ask might try to match empty orders
+    // If level is not properly cleared in the index bitset, an aggressive ask might try to match
+    // empty orders
     book.submit_order(2, 100, 10, false);
     assert(book.get_quantity(1) == 0);
     assert(book.get_quantity(2) == 10);
@@ -39,7 +40,7 @@ static void test_cancel_head_and_tail() {
 
     // Cancel head
     book.cancel_order(1);
-    
+
     // Aggressive sell of 10 should hit id=2
     book.submit_order(4, 100, 10, false);
     assert(book.get_quantity(2) == 0);
@@ -47,7 +48,7 @@ static void test_cancel_head_and_tail() {
 
     // Cancel tail
     book.cancel_order(3);
-    
+
     // Aggressive sell of 10 should stay on book (no bids left at 100)
     book.submit_order(5, 100, 10, false);
     assert(book.get_quantity(5) == 10);
@@ -58,10 +59,10 @@ static void test_cancel_invalid_id() {
     book.init(100000);
 
     book.submit_order(1, 100, 10, true);
-    
+
     // Cancel non-existent ID
     book.cancel_order(999);
-    
+
     // Cancel ID out of bounds
     book.cancel_order(200000);
 

@@ -14,9 +14,7 @@
 template <typename QueueT> class MatchingEngine {
 public:
     MatchingEngine(QueueT& queue)
-        : queue_(queue)
-    {
-    }
+        : queue_(queue) { }
 
     // Q: Why are the copy constructor and copy assignment operator explicitly deleted?
     // A: std::thread is not copyable, and NaiveQueue& is a reference member. If a copy were
@@ -26,13 +24,11 @@ public:
     MatchingEngine(const MatchingEngine&) = delete;
     MatchingEngine& operator=(const MatchingEngine&) = delete;
 
-    void wait_until_ready()
-    {
+    void wait_until_ready() {
         while (!ready_.load(std::memory_order_acquire)) { }
     }
 
-    void start(size_t max_orders)
-    {
+    void start(size_t max_orders) {
         // Q: Why launch the engine on a separate thread rather than running it inline
         //    on the caller's thread?
         // A: The engine and the producer need to be able to run concurrently. The engine sleeps
@@ -42,8 +38,7 @@ public:
         thread_ = std::thread([this, max_orders]() { run(max_orders); });
     }
 
-    void stop()
-    {
+    void stop() {
         // Q: Why use a SHUTDOWN sentinel message to stop the thread rather than a
         //    shared atomic<bool> flag checked in the run loop?
         // A: An atomic<bool> flag would only be read _after_ the thread awakens to process a
@@ -55,8 +50,7 @@ public:
         thread_.join();
     }
 
-    void report()
-    {
+    void report() {
         // Q: Why sort the latency vector before computing percentiles, rather than
         //    maintaining a running sorted structure (e.g., a heap)?
         // A:  report() is called once, after all orders have been processed, completely outside the
@@ -87,8 +81,7 @@ public:
     }
 
 private:
-    void run(size_t max_orders)
-    {
+    void run(size_t max_orders) {
         pin_to_core(matching_bench_core());
         book_.init(max_orders);
         // Q: Why call reserve(max_orders) on latencies_ upfront?

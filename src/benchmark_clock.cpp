@@ -14,11 +14,11 @@
 
 namespace {
 
-constexpr int kSamples = 1'000'000;
+    constexpr int kSamples = 1'000'000;
 
-inline uint64_t to_ns(const timespec& ts) {
-    return (uint64_t)ts.tv_sec * 1'000'000'000ULL + (uint64_t)ts.tv_nsec;
-}
+    inline uint64_t to_ns(const timespec& ts) {
+        return (uint64_t)ts.tv_sec * 1'000'000'000ULL + (uint64_t)ts.tv_nsec;
+    }
 
 } // namespace
 

@@ -12,8 +12,7 @@
 
 class NaiveQueue {
 public:
-    void push(const OrderMessage& msg)
-    {
+    void push(const OrderMessage& msg) {
         {
             // Q: Why release the lock before calling notify_one() (i.e., why the inner braces)?
             // A: The lock only releases after it goes out of scope. If I call notify_one() while
@@ -30,8 +29,7 @@ public:
     // this
     //    is that lock_guard does not support locking and unlocking before it goes out of scope,
     //    which is what std::condition_variable needs.
-    OrderMessage pop()
-    {
+    OrderMessage pop() {
         std::unique_lock<std::mutex> lock(mtx_);
         // Q: Why pass a lambda predicate to wait() instead of calling wait(lock) directly?
         // A: To guard against spurious wakeups — the OS can wake a sleeping thread even when
@@ -44,8 +42,7 @@ public:
         return msg;
     };
 
-    bool try_pop(OrderMessage& out)
-    {
+    bool try_pop(OrderMessage& out) {
         std::lock_guard<std::mutex> lock(mtx_);
         if (queue_.empty())
             return false;

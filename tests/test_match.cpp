@@ -1,5 +1,5 @@
-#include "engine/fast_bitset_book.h"
 #include "engine/constants.h"
+#include "engine/fast_bitset_book.h"
 #include <cassert>
 
 static void test_sweep_multiple_levels() {
@@ -13,8 +13,8 @@ static void test_sweep_multiple_levels() {
     // Aggressive sell sweeps 100 and 99
     book.submit_order(4, 99, 15, false);
 
-    assert(book.get_quantity(1) == 0);  // fully filled
-    assert(book.get_quantity(2) == 5);  // partial fill
+    assert(book.get_quantity(1) == 0); // fully filled
+    assert(book.get_quantity(2) == 5); // partial fill
     assert(book.get_quantity(3) == 10); // untouched
     assert(book.get_quantity(4) == 0);
 }
@@ -30,10 +30,10 @@ static void test_price_boundary_guard() {
     // Aggressive buy only willing to pay 101, qty 25
     book.submit_order(4, 101, 25, true);
 
-    assert(book.get_quantity(1) == 0);  // filled at 100
-    assert(book.get_quantity(2) == 0);  // filled at 101
+    assert(book.get_quantity(1) == 0); // filled at 100
+    assert(book.get_quantity(2) == 0); // filled at 101
     assert(book.get_quantity(3) == 10); // untouched (price > 101)
-    
+
     // Remaining buy qty rests on book at 101 (qty 5)
     assert(book.get_quantity(4) == 5);
 }
@@ -50,7 +50,7 @@ static void test_drain_book() {
 
     assert(book.get_quantity(1) == 0);
     assert(book.get_quantity(2) == 0);
-    
+
     // Remaining 80 rests on book at 90
     assert(book.get_quantity(3) == 80);
 }
