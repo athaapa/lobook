@@ -22,12 +22,14 @@ OUT="${LOBOOK_PLOT_OUT:-$PWD/latency_hist.png}"
 ASCII=0
 LOGX=0
 STYLE=
+BINS=
 XMAX_PCT=
 while [[ $# -gt 0 ]]; do
   case $1 in
     --ascii)            ASCII=1; shift ;;
     --logx)             LOGX=1;  shift ;;
     --style=*)          STYLE="${1#--style=}"; shift ;;
+    --bins=*)           BINS="${1#--bins=}"; shift ;;
     --xmax-pct=*)       XMAX_PCT="${1#--xmax-pct=}"; shift ;;
     *)                  break   ;;
   esac
@@ -43,6 +45,9 @@ if [[ "$LOGX" -eq 1 ]]; then
 fi
 if [[ -n "$STYLE" ]]; then
   extra+=(--style "$STYLE")
+fi
+if [[ -n "$BINS" ]]; then
+  extra+=(--bins "$BINS")
 fi
 if [[ -n "$XMAX_PCT" ]]; then
   extra+=(--xmax-pct "$XMAX_PCT")
