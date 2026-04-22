@@ -16,6 +16,7 @@ Custom PNG (CSV kept on host):
   python3 scripts/plot_latency.py lat.csv -o lat.png --max-ns=5000
   python3 scripts/plot_latency.py lat.csv -o lat_log.png --logx   # log x (ns), log-spaced bins
   python3 scripts/plot_latency.py lat.csv --ascii --logx          # same for terminal
+  python3 scripts/plot_latency.py lat.csv -o cur.png --style=line  # line + markers (or dots)
 """
 
 from __future__ import annotations
@@ -145,6 +146,7 @@ def run_png(
     bins: int,
     max_ns: Optional[float],
     logx: bool,
+    style: str,
 ) -> None:
     import numpy as np
     from matplotlib import pyplot as plt
@@ -153,42 +155,92 @@ def run_png(
     e2a = np.asarray(e2, dtype=np.float64)
     qa = np.asarray(q2, dtype=np.float64)
 
+    def binned(
+        data: "np.ndarray",
+    ) -> tuple["np.ndarray", "np.ndarray", float, float, bool]:
+        """Return counts, x_centers, x_min, x_max, is_logx_bins."""
+        if not logx:
+            counts, edges = np.histogram(data, bins=bins)
+            x_cent = 0.5 * (edges[:-1] + edges[1:])
+            return counts, x_cent, float(edges[0]), float(edges[-1]), False
+        d = np.maximum(data, 1.0)
+        xmin, xmax = float(d.min()), float(d.max())
+        if xmax <= xmin * 1.0001:
+            edges = np.array([xmin, max(xmin * 1.01, 2.0)])
+        else:
+            edges = np.logspace(
+                np.log10(xmin), np.log10(xmax), max(2, bins + 1)
+            )
+        counts, edges = np.histogram(d, bins=edges)
+        x_cent = np.sqrt(np.maximum(edges[:-1] * edges[1:], 1e-300))
+        return counts, x_cent, xmin, xmax, True
+
     fig, axes = plt.subplots(1, 2, figsize=(11, 4), sharey=True)
+    color = "steelblue"
     for ax, data, ptitle in (
         (axes[0], e2a, "End-to-end latency (ns)"),
         (axes[1], qa, "Queue latency (ns)"),
     ):
-        if not logx:
-            ax.hist(
-                data,
-                bins=bins,
-                color="steelblue",
-                edgecolor="white",
-                linewidth=0.3,
-            )
-            ax.set_xlabel("ns")
-            if max_ns is not None:
-                ax.set_xlim(0, max_ns)
-        else:
-            # Log scale on latency axis: positive samples only, log-spaced bin edges.
-            d = np.maximum(data, 1.0)
-            xmin, xmax = float(d.min()), float(d.max())
-            if xmax <= xmin * 1.0001:
-                edges = np.array([xmin, max(xmin * 1.01, 2.0)])
-            else:
-                edges = np.logspace(
-                    np.log10(xmin), np.log10(xmax), max(2, bins + 1)
+        if style == "bars":
+            if not logx:
+                ax.hist(
+                    data,
+                    bins=bins,
+                    color=color,
+                    edgecolor="white",
+                    linewidth=0.3,
                 )
-            ax.hist(
-                d,
-                bins=edges,
-                color="steelblue",
-                edgecolor="white",
-                linewidth=0.3,
-            )
-            ax.set_xscale("log")
-            ax.set_xlabel("ns (log scale)")
-            ax.set_xlim(xmin * 0.8, xmax * 1.2)
+                ax.set_xlabel("ns")
+                if max_ns is not None:
+                    ax.set_xlim(0, max_ns)
+            else:
+                d = np.maximum(data, 1.0)
+                xmin, xmax = float(d.min()), float(d.max())
+                if xmax <= xmin * 1.0001:
+                    edges = np.array([xmin, max(xmin * 1.01, 2.0)])
+                else:
+                    edges = np.logspace(
+                        np.log10(xmin), np.log10(xmax), max(2, bins + 1)
+                    )
+                ax.hist(
+                    d,
+                    bins=edges,
+                    color=color,
+                    edgecolor="white",
+                    linewidth=0.3,
+                )
+                ax.set_xscale("log")
+                ax.set_xlabel("ns (log scale)")
+                ax.set_xlim(xmin * 0.8, xmax * 1.2)
+        else:
+            counts, x_cent, xmin, xmax, was_logx = binned(data)
+            if was_logx:
+                ax.set_xscale("log")
+                ax.set_xlabel("ns (log scale)")
+                ax.set_xlim(xmin * 0.8, xmax * 1.2)
+            else:
+                ax.set_xlabel("ns")
+                if max_ns is not None:
+                    ax.set_xlim(0, max_ns)
+            if style == "line":
+                ax.plot(
+                    x_cent,
+                    counts,
+                    color=color,
+                    marker="o",
+                    markersize=4,
+                    linewidth=1.2,
+                )
+            else:  # dots
+                ax.plot(
+                    x_cent,
+                    counts,
+                    "o",
+                    color=color,
+                    markersize=5,
+                    linestyle="none",
+                )
+            ax.grid(True, alpha=0.3, linestyle=":", linewidth=0.6)
         ax.set_title(ptitle)
     axes[0].set_ylabel("count")
     fig.suptitle(title)
@@ -224,6 +276,12 @@ def main() -> int:
         action="store_true",
         help="Log scale on the latency (x) axis; bins are log-spaced in ns (PNG) or in ASCII",
     )
+    ap.add_argument(
+        "--style",
+        choices=("bars", "line", "dots"),
+        default="bars",
+        help="bars: default histogram; line: line+markers at bin centers; dots: markers only",
+    )
     args = ap.parse_args()
 
     if not args.ascii:
@@ -249,6 +307,7 @@ def main() -> int:
             args.bins,
             args.max_ns,
             args.logx,
+            args.style,
         )
     except ImportError as e:
         print("PNG mode needs: pip install matplotlib numpy", file=sys.stderr)
