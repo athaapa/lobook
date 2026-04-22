@@ -275,6 +275,25 @@ def run_png(
                 median_val = float(np.percentile(data, 50))
                 ax.axvline(median_val, color="#e74c3c", linewidth=1.0, alpha=0.8, label=f"{int(median_val)}")
                 ax.legend(loc="upper right", frameon=False, fontsize="small", labelcolor="dimgrey")
+        elif style == "icdf":
+            ax.set_facecolor("#f0f0f0")
+            # For Inverse CDF we plot `1.0 - p` on a log scale and invert the X axis
+            d = np.sort(data)
+            n = len(d)
+            if n > 0:
+                p = np.arange(1, n + 1) / n
+                p[-1] = (n - 0.5) / n  # avoid log(0)
+                inv_p = 1.0 - p
+                ax.plot(inv_p, d, color="#3498db", linewidth=1.5)
+                ax.set_xscale("log")
+                if ax == axes[0]:
+                    ax.invert_xaxis()
+                    import matplotlib.ticker as ticker
+                    ax.xaxis.set_major_formatter(ticker.FuncFormatter(
+                        lambda x, pos: f"{(1-x)*100:g}%" if x < 1 else "0%"
+                    ))
+            if logx:
+                ax.set_yscale("log")
         else:
             counts, x_cent, _xmin, _xmax, _was_logx = binned(data)
             y = np.asarray(counts, dtype=np.float64)
@@ -297,16 +316,23 @@ def run_png(
                     linestyle="none",
                 )
             ax.grid(True, **grid_kws)
-        if logx:
+        if logx and style != "icdf":
             ax.set_xscale("log")
             if style in ("kde", "line", "dots"):
                 ax.set_yscale("log")
             # style == "bars": ax.hist(..., log=True) set the y axis to log
-        ax.set_xlabel("Latency (ns)")
+        if style == "icdf":
+            ax.set_xlabel("Percentile")
+        else:
+            ax.set_xlabel("Latency (ns)")
         ax.set_title(ptitle)
-    axes[0].set_xlim(x_lo, x_hi)
+    if style != "icdf":
+        axes[0].set_xlim(x_lo, x_hi)
+        
     if style == "kde":
         axes[0].set_ylabel("probability density")
+    elif style == "icdf":
+        axes[0].set_ylabel("Latency (ns)")
     else:
         axes[0].set_ylabel("samples")
     fig.suptitle(title)
@@ -345,9 +371,9 @@ def main() -> int:
     )
     ap.add_argument(
         "--style",
-        choices=("bars", "line", "dots", "kde", "step"),
+        choices=("bars", "line", "dots", "kde", "step", "icdf"),
         default="step",
-        help="bars: histogram; line/dots: bin centers; kde: smooth density; step: line histogram (HDR style)",
+        help="bars: histogram; line/dots: bin centers; kde: density; step: line hist; icdf: Inverse CDF",
     )
     ap.add_argument(
         "--xmax-pct",
