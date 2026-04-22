@@ -286,11 +286,11 @@ def run_png(
             y_padded = np.pad(y, (window_size//2, window_size - 1 - window_size//2), mode='edge')
             y_smooth = np.convolve(y_padded, window, mode='valid')
             
-            y_plot = np.where(y_smooth > 0.1, y_smooth, np.nan) if logx else y_smooth
+            y_plot = np.where(y_smooth > 0.5, y_smooth, np.nan) if logx else y_smooth
             ax.plot(x_cent, y_plot, color="#3498db", linewidth=1.5)
             # Fill under the curve slightly
-            y_fill = np.nan_to_num(y_plot, nan=1e-10)
-            ax.fill_between(x_cent, y_fill, 1e-10, alpha=0.15, color="#3498db")
+            y_fill = np.nan_to_num(y_plot, nan=0.5)
+            ax.fill_between(x_cent, y_fill, 0.5, alpha=0.15, color="#3498db")
             
             # Draw Median line
             if data.size > 0:
@@ -323,6 +323,8 @@ def run_png(
             ax.set_xscale("log")
             if style in ("kde", "line", "dots", "smooth"):
                 ax.set_yscale("log")
+                if style != "kde":
+                    ax.set_ylim(bottom=0.8)
             # style == "bars": ax.hist(..., log=True) set the y axis to log
         ax.set_xlabel("Latency (ns)")
         ax.set_title(ptitle)
