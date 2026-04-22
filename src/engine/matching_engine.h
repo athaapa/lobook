@@ -7,7 +7,9 @@
 #include <atomic>
 #include <cstdio>
 #include <ctime>
+#include <fstream>
 #include <iostream>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -78,6 +80,19 @@ public:
         std::cout << "p50: " << queue_latencies_[p50_idx_pop] << "\n";
         std::cout << "p99: " << queue_latencies_[p99_idx_pop] << "\n";
         std::cout << "p999: " << queue_latencies_[p999_idx_pop] << "\n";
+    }
+
+    // One row per message: end-to-end (push -> match done) and queue (push -> pop) in ns.
+    // For matplotlib/pandas, not on the hot path.
+    bool dump_latencies(const std::string& path) const {
+        std::ofstream out(path);
+        if (!out)
+            return false;
+        out << "e2e_ns,queue_ns\n";
+        for (size_t i = 0; i < latencies_.size(); ++i) {
+            out << latencies_[i] << ',' << queue_latencies_[i] << '\n';
+        }
+        return (bool)out;
     }
 
 private:

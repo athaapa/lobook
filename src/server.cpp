@@ -7,8 +7,11 @@
 //
 // Usage:
 //   server [--queue=cached|uncached|naive] [--pacing-ns=N] [--workload=N]
+//          [--dump-latencies=FILE]
 //
 // Default: --queue=cached --pacing-ns=1000 --workload=100000
+//
+// --dump-latencies writes CSV (e2e_ns,queue_ns) for off-line plots (e.g. scripts/plot_latency.py).
 //
 // The three queue modes:
 //   cached    SPSCQueue<N, true>   (Rigtorp's cached-index optimization)
@@ -39,11 +42,13 @@ namespace {
         std::string queue_mode = "cached";
         uint64_t pacing_ns = 1000;
         uint64_t workload = 100'000;
+        std::string dump_latencies;
     };
 
     void print_usage(const char* prog) {
         std::cerr << "Usage: " << prog
-                  << " [--queue=cached|uncached|naive] [--pacing-ns=N] [--workload=N]\n";
+                  << " [--queue=cached|uncached|naive] [--pacing-ns=N] [--workload=N]"
+                  << " [--dump-latencies=FILE]\n";
     }
 
     bool parse_args(int argc, char* argv[], Args& out) {
@@ -58,6 +63,8 @@ namespace {
                 out.pacing_ns = std::stoull(a.substr(12));
             } else if (a.rfind("--workload=", 0) == 0) {
                 out.workload = std::stoull(a.substr(11));
+            } else if (a.rfind("--dump-latencies=", 0) == 0) {
+                out.dump_latencies = a.substr(17);
             } else {
                 std::cerr << "unknown argument: " << a << "\n";
                 print_usage(argv[0]);
@@ -73,7 +80,7 @@ namespace {
         return true;
     }
 
-    template <typename QueueT> void run(const Args& args) {
+    template <typename QueueT> bool run(const Args& args) {
         QueueT queue;
         MatchingEngine<QueueT> engine(queue);
         engine.start(kBookOrders);
@@ -118,7 +125,14 @@ namespace {
 
         network_thread.join();
         engine.stop();
+        if (!args.dump_latencies.empty()) {
+            if (!engine.dump_latencies(args.dump_latencies)) {
+                std::cerr << "failed to write --dump-latencies: " << args.dump_latencies << "\n";
+                return false;
+            }
+        }
         engine.report();
+        return true;
     }
 
 } // anonymous namespace
@@ -134,14 +148,20 @@ int main(int argc, char* argv[]) {
     lobook::bench::print_kv("workload", std::to_string(args.workload) + " ops");
     lobook::bench::print_kv("network core", std::to_string(network_bench_core()));
     lobook::bench::print_kv("matching core", std::to_string(matching_bench_core()));
+    if (!args.dump_latencies.empty()) {
+        lobook::bench::print_kv("dump latencies", args.dump_latencies);
+    }
     std::cout << "\n";
 
     if (args.queue_mode == "cached") {
-        run<SPSCQueue<kQueueCapacity, true>>(args);
+        if (!run<SPSCQueue<kQueueCapacity, true>>(args))
+            return 1;
     } else if (args.queue_mode == "uncached") {
-        run<SPSCQueue<kQueueCapacity, false>>(args);
+        if (!run<SPSCQueue<kQueueCapacity, false>>(args))
+            return 1;
     } else {
-        run<NaiveQueue>(args);
+        if (!run<NaiveQueue>(args))
+            return 1;
     }
     return 0;
 }
