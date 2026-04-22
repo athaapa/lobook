@@ -17,8 +17,9 @@ Custom PNG (CSV kept on host):
   python3 scripts/plot_latency.py lat.csv -o full.png --xmax-pct=100   # x-axis to global max
   python3 scripts/plot_latency.py lat.csv -o lat_log.png --logx   # log x (ns), log-spaced bins
   python3 scripts/plot_latency.py lat.csv --ascii --logx          # same for terminal
-  python3 scripts/plot_latency.py lat.csv -o cur.png --style=line  # line + markers (or dots)
-  python3 scripts/plot_latency.py lat.csv -o smooth.png --style=kde  # needs: pip install scipy
+  python3 scripts/plot_latency.py lat.csv -o cur.png --style=line  # bin centers with lines
+  python3 scripts/plot_latency.py lat.csv -o step.png --style=step --bins=200 # high-res step histogram like HDR
+  python3 scripts/plot_latency.py lat.csv -o smooth.png --style=kde  # needs: scipy
 """
 
 from __future__ import annotations
@@ -255,6 +256,25 @@ def run_png(
                     edgecolor="white",
                     linewidth=0.3,
                 )
+        elif style == "step":
+            ax.set_facecolor("#f0f0f0") # Light grey background like ggplot
+            if not logx:
+                ax.hist(data, bins=bins, histtype="step", color="#3498db", linewidth=1.5)
+            else:
+                d = np.maximum(data, 1.0)
+                xmin, xmax = float(d.min()), float(d.max())
+                if xmax <= xmin * 1.0001:
+                    edges = np.array([xmin, max(xmin * 1.01, 2.0)])
+                else:
+                    edges = np.logspace(
+                        np.log10(xmin), np.log10(xmax), max(2, bins + 1)
+                    )
+                ax.hist(d, bins=edges, log=logx, histtype="step", color="#3498db", linewidth=1.5)
+            # Draw Median line
+            if data.size > 0:
+                median_val = float(np.percentile(data, 50))
+                ax.axvline(median_val, color="#e74c3c", linewidth=1.0, alpha=0.8, label=f"{int(median_val)}")
+                ax.legend(loc="upper right", frameon=False, fontsize="small", labelcolor="dimgrey")
         else:
             counts, x_cent, _xmin, _xmax, _was_logx = binned(data)
             y = np.asarray(counts, dtype=np.float64)
@@ -265,9 +285,7 @@ def run_png(
                     x_cent,
                     y,
                     color=color,
-                    marker="o",
-                    markersize=4,
-                    linewidth=1.2,
+                    linewidth=1.5,
                 )
             else:  # dots
                 ax.plot(
@@ -327,9 +345,9 @@ def main() -> int:
     )
     ap.add_argument(
         "--style",
-        choices=("bars", "line", "dots", "kde"),
-        default="bars",
-        help="bars: histogram; line/dots: bin centers; kde: smooth density (requires scipy)",
+        choices=("bars", "line", "dots", "kde", "step"),
+        default="step",
+        help="bars: histogram; line/dots: bin centers; kde: smooth density; step: line histogram (HDR style)",
     )
     ap.add_argument(
         "--xmax-pct",
@@ -340,6 +358,10 @@ def main() -> int:
         "Use 100 to include the global max sample on the x-axis.",
     )
     args = ap.parse_args()
+
+    # Step style generally wants a lot of bins for the line curve to look smooth like HDR logs
+    if args.style == "step" and "--bins" not in sys.argv:
+        args.bins = max(args.bins, 200)
 
     if not args.ascii:
         os.environ.setdefault("MPLBACKEND", "Agg")
