@@ -275,28 +275,6 @@ def run_png(
                 median_val = float(np.percentile(data, 50))
                 ax.axvline(median_val, color="#e74c3c", linewidth=1.0, alpha=0.8, label=f"{int(median_val)}")
                 ax.legend(loc="upper right", frameon=False, fontsize="small", labelcolor="dimgrey")
-        elif style == "smooth":
-            ax.set_facecolor("#f0f0f0") # Light grey background
-            counts, x_cent, _xmin, _xmax, _was_logx = binned(data)
-            y = np.asarray(counts, dtype=np.float64)
-            # Smooth using simple gaussian-like numpy convolution
-            window_size = max(5, bins // 20)
-            window = np.exp(-0.5 * (np.arange(window_size) - window_size//2)**2 / (window_size/4)**2)
-            window /= window.sum()
-            y_padded = np.pad(y, (window_size//2, window_size - 1 - window_size//2), mode='edge')
-            y_smooth = np.convolve(y_padded, window, mode='valid')
-            
-            y_plot = np.where(y_smooth > 0.5, y_smooth, np.nan) if logx else y_smooth
-            ax.plot(x_cent, y_plot, color="#3498db", linewidth=1.5)
-            # Fill under the curve slightly
-            y_fill = np.nan_to_num(y_plot, nan=0.5)
-            ax.fill_between(x_cent, y_fill, 0.5, alpha=0.15, color="#3498db")
-            
-            # Draw Median line
-            if data.size > 0:
-                median_val = float(np.percentile(data, 50))
-                ax.axvline(median_val, color="#e74c3c", linewidth=1.0, alpha=0.8, label=f"{int(median_val)}")
-                ax.legend(loc="upper right", frameon=False, fontsize="small", labelcolor="dimgrey")
         else:
             counts, x_cent, _xmin, _xmax, _was_logx = binned(data)
             y = np.asarray(counts, dtype=np.float64)
@@ -321,10 +299,8 @@ def run_png(
             ax.grid(True, **grid_kws)
         if logx:
             ax.set_xscale("log")
-            if style in ("kde", "line", "dots", "smooth"):
+            if style in ("kde", "line", "dots"):
                 ax.set_yscale("log")
-                if style != "kde":
-                    ax.set_ylim(bottom=0.8)
             # style == "bars": ax.hist(..., log=True) set the y axis to log
         ax.set_xlabel("Latency (ns)")
         ax.set_title(ptitle)
@@ -369,9 +345,9 @@ def main() -> int:
     )
     ap.add_argument(
         "--style",
-        choices=("bars", "line", "dots", "kde", "step", "smooth"),
-        default="smooth",
-        help="bars: histogram; line/dots: bin centers; kde: smooth density; step: line histogram (HDR); smooth: smoothed line",
+        choices=("bars", "line", "dots", "kde", "step"),
+        default="step",
+        help="bars: histogram; line/dots: bin centers; kde: smooth density; step: line histogram (HDR style)",
     )
     ap.add_argument(
         "--xmax-pct",
@@ -383,8 +359,8 @@ def main() -> int:
     )
     args = ap.parse_args()
 
-    # Step/smooth styles generally want a lot of bins for the line curve to look good
-    if args.style in ("step", "smooth") and "--bins" not in sys.argv:
+    # Step style generally wants a lot of bins for the line curve to look smooth like HDR logs
+    if args.style == "step" and "--bins" not in sys.argv:
         args.bins = max(args.bins, 200)
 
     if not args.ascii:
