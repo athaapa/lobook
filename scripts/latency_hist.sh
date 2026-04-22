@@ -5,6 +5,8 @@
 #   ./scripts/latency_hist.sh --workload=100000 --pacing-ns=1000 --queue=uncached
 #   ./scripts/latency_hist.sh --ascii --workload=100000
 #     # ^ print histogram in this SSH session (no PNG, no matplotlib, nothing to scp)
+#   ./scripts/latency_hist.sh --logx --workload=100000
+#     # ^ PNG with log x-axis (ns)
 #
 # LOBOOK_SERVER   path to server (default: <repo>/build/server)
 # LOBOOK_PLOT_OUT output PNG      (default: ./latency_hist.png; ignored with --ascii)
@@ -14,18 +16,25 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd .. && pwd)"
 SERVER="${LOBOOK_SERVER:-$ROOT/build/server}"
 OUT="${LOBOOK_PLOT_OUT:-$PWD/latency_hist.png}"
 ASCII=0
-if [[ "${1-}" == --ascii ]]; then
-  ASCII=1
-  shift
-fi
+LOGX=0
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --ascii) ASCII=1; shift ;;
+    --logx)  LOGX=1;  shift ;;
+    *)       break   ;;
+  esac
+done
 CSV="$(mktemp "${TMPDIR:-/tmp}/lobook_latency.XXXXXX.csv")"
 cleanup() { rm -f "$CSV"; }
 trap cleanup EXIT
 
 "$SERVER" --dump-latencies="$CSV" "$@"
+extra=()
+if [[ "$LOGX" -eq 1 ]]; then
+  extra+=(--logx)
+fi
 if [[ "$ASCII" -eq 1 ]]; then
-  python3 "$ROOT/scripts/plot_latency.py" --ascii "$CSV"
+  python3 "$ROOT/scripts/plot_latency.py" "${extra[@]}" --ascii "$CSV"
 else
-  python3 "$ROOT/scripts/plot_latency.py" "$CSV" -o "$OUT"
-  echo "Wrote $OUT"
+  python3 "$ROOT/scripts/plot_latency.py" "${extra[@]}" "$CSV" -o "$OUT"
 fi
