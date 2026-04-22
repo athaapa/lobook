@@ -17,6 +17,7 @@ Custom PNG (CSV kept on host):
   python3 scripts/plot_latency.py lat.csv -o lat_log.png --logx   # log x (ns), log-spaced bins
   python3 scripts/plot_latency.py lat.csv --ascii --logx          # same for terminal
   python3 scripts/plot_latency.py lat.csv -o cur.png --style=line  # line + markers (or dots)
+  python3 scripts/plot_latency.py lat.csv -o smooth.png --style=kde  # needs: pip install scipy
 """
 
 from __future__ import annotations
@@ -155,6 +156,32 @@ def run_png(
     e2a = np.asarray(e2, dtype=np.float64)
     qa = np.asarray(q2, dtype=np.float64)
 
+    def kde_xs_ys(
+        data: "np.ndarray", ngrid: int
+    ) -> tuple["np.ndarray", "np.ndarray"]:
+        """1D Gaussian KDE in linear ns; y is probability density (integrates to 1)."""
+        try:
+            from scipy.stats import gaussian_kde
+        except ImportError as e:  # pragma: no cover
+            raise ImportError("KDE style requires SciPy: pip install scipy") from e
+
+        d = np.asarray(data, dtype=np.float64)
+        if logx:
+            d = np.maximum(d, 1.0)
+        if d.size < 2:
+            raise ValueError("KDE needs at least 2 samples after clip")
+        if float(np.ptp(d)) == 0.0:
+            raise ValueError("KDE needs at least 2 distinct values")
+        kde = gaussian_kde(d)
+        lo, hi = float(d.min()), float(d.max())
+        ngrid = max(200, min(2048, ngrid))
+        if not logx:
+            xs = np.linspace(lo, hi, ngrid)
+        else:
+            xs = np.logspace(np.log10(lo), np.log10(hi), ngrid)
+        ys = kde(xs)
+        return xs, ys
+
     def binned(
         data: "np.ndarray",
     ) -> tuple["np.ndarray", "np.ndarray", float, float, bool]:
@@ -177,11 +204,25 @@ def run_png(
 
     fig, axes = plt.subplots(1, 2, figsize=(11, 4), sharey=True)
     color = "steelblue"
+    grid_kws = {"alpha": 0.3, "linestyle": ":", "linewidth": 0.6}
     for ax, data, ptitle in (
         (axes[0], e2a, "End-to-end latency (ns)"),
         (axes[1], qa, "Queue latency (ns)"),
     ):
-        if style == "bars":
+        if style == "kde":
+            xs, ys = kde_xs_ys(data, ngrid=bins * 6)
+            ax.plot(xs, ys, color=color, linewidth=1.3)
+            if logx:
+                ax.set_xscale("log")
+                ax.set_xlabel("ns (log scale)")
+                d = np.maximum(np.asarray(data, float), 1.0)
+                ax.set_xlim(float(d.min()) * 0.8, float(d.max()) * 1.2)
+            else:
+                ax.set_xlabel("ns")
+                if max_ns is not None:
+                    ax.set_xlim(0, max_ns)
+            ax.grid(True, **grid_kws)
+        elif style == "bars":
             if not logx:
                 ax.hist(
                     data,
@@ -240,9 +281,12 @@ def run_png(
                     markersize=5,
                     linestyle="none",
                 )
-            ax.grid(True, alpha=0.3, linestyle=":", linewidth=0.6)
+            ax.grid(True, **grid_kws)
         ax.set_title(ptitle)
-    axes[0].set_ylabel("count")
+    if style == "kde":
+        axes[0].set_ylabel("probability density")
+    else:
+        axes[0].set_ylabel("count")
     fig.suptitle(title)
     fig.tight_layout()
     fig.savefig(out, dpi=150)
@@ -278,9 +322,9 @@ def main() -> int:
     )
     ap.add_argument(
         "--style",
-        choices=("bars", "line", "dots"),
+        choices=("bars", "line", "dots", "kde"),
         default="bars",
-        help="bars: default histogram; line: line+markers at bin centers; dots: markers only",
+        help="bars: histogram; line/dots: bin centers; kde: smooth density (requires scipy)",
     )
     args = ap.parse_args()
 
@@ -310,7 +354,12 @@ def main() -> int:
             args.style,
         )
     except ImportError as e:
-        print("PNG mode needs: pip install matplotlib numpy", file=sys.stderr)
+        print("PNG: pip install matplotlib numpy", file=sys.stderr)
+        if "scipy" in str(e).lower() or "kde" in str(e).lower():
+            print("  --style=kde: pip install scipy", file=sys.stderr)
+        print(e, file=sys.stderr)
+        return 1
+    except ValueError as e:
         print(e, file=sys.stderr)
         return 1
     return 0

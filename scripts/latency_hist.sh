@@ -9,6 +9,8 @@
 #     # ^ PNG with log x-axis (ns)
 #   ./scripts/latency_hist.sh --style=line --workload=100000
 #     # line + markers (or --style=dots)
+#   ./scripts/latency_hist.sh --style=kde --workload=100000
+#     # smooth density (needs: pip install scipy)
 #
 # LOBOOK_SERVER   path to server (default: <repo>/build/server)
 # LOBOOK_PLOT_OUT output PNG      (default: ./latency_hist.png; ignored with --ascii)
