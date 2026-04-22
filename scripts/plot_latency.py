@@ -14,6 +14,7 @@ Simplest one-step:
 Custom PNG (CSV kept on host):
   ./build/server --dump-latencies=lat.csv --workload=100000
   python3 scripts/plot_latency.py lat.csv -o lat.png --max-ns=5000
+  python3 scripts/plot_latency.py lat.csv -o full.png --xmax-pct=100   # x-axis to global max
   python3 scripts/plot_latency.py lat.csv -o lat_log.png --logx   # log x (ns), log-spaced bins
   python3 scripts/plot_latency.py lat.csv --ascii --logx          # same for terminal
   python3 scripts/plot_latency.py lat.csv -o cur.png --style=line  # line + markers (or dots)
@@ -148,6 +149,7 @@ def run_png(
     max_ns: Optional[float],
     logx: bool,
     style: str,
+    xmax_pct: float,
 ) -> None:
     import numpy as np
     from matplotlib import pyplot as plt
@@ -155,6 +157,17 @@ def run_png(
     e2, q2 = _clip(e2e, queue, max_ns)
     e2a = np.asarray(e2, dtype=np.float64)
     qa = np.asarray(q2, dtype=np.float64)
+
+    def display_xlim(pooled: "np.ndarray") -> tuple[float, float]:
+        """Shared x-axis for both panels: low end and (by default) a high-percentile cap."""
+        if pooled.size == 0:
+            return (0.0, 1.0)
+        pct = float(np.clip(xmax_pct, 0.01, 100.0))
+        x_top = float(np.percentile(pooled, pct))
+        if not logx:
+            return (0.0, max(x_top * 1.02, 1.0))
+        lo = max(1.0, float(np.min(pooled)))
+        return (lo * 0.85, max(x_top * 1.08, lo * 1.2))
 
     def kde_xs_ys(
         data: "np.ndarray", ngrid: int
@@ -202,25 +215,19 @@ def run_png(
         x_cent = np.sqrt(np.maximum(edges[:-1] * edges[1:], 1e-300))
         return counts, x_cent, xmin, xmax, True
 
-    fig, axes = plt.subplots(1, 2, figsize=(11, 4), sharey=True)
+    pooled = np.concatenate((e2a.ravel(), qa.ravel()))
+    x_lo, x_hi = display_xlim(pooled)
+
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.2), sharex=True, sharey=True)
     color = "steelblue"
     grid_kws = {"alpha": 0.3, "linestyle": ":", "linewidth": 0.6}
     for ax, data, ptitle in (
-        (axes[0], e2a, "End-to-end latency (ns)"),
-        (axes[1], qa, "Queue latency (ns)"),
+        (axes[0], e2a, "End-to-end latency"),
+        (axes[1], qa, "Queue latency"),
     ):
         if style == "kde":
             xs, ys = kde_xs_ys(data, ngrid=bins * 6)
             ax.plot(xs, ys, color=color, linewidth=1.3)
-            if logx:
-                ax.set_xscale("log")
-                ax.set_xlabel("ns (log scale)")
-                d = np.maximum(np.asarray(data, float), 1.0)
-                ax.set_xlim(float(d.min()) * 0.8, float(d.max()) * 1.2)
-            else:
-                ax.set_xlabel("ns")
-                if max_ns is not None:
-                    ax.set_xlim(0, max_ns)
             ax.grid(True, **grid_kws)
         elif style == "bars":
             if not logx:
@@ -231,9 +238,6 @@ def run_png(
                     edgecolor="white",
                     linewidth=0.3,
                 )
-                ax.set_xlabel("ns")
-                if max_ns is not None:
-                    ax.set_xlim(0, max_ns)
             else:
                 d = np.maximum(data, 1.0)
                 xmin, xmax = float(d.min()), float(d.max())
@@ -246,27 +250,20 @@ def run_png(
                 ax.hist(
                     d,
                     bins=edges,
+                    log=logx,
                     color=color,
                     edgecolor="white",
                     linewidth=0.3,
                 )
-                ax.set_xscale("log")
-                ax.set_xlabel("ns (log scale)")
-                ax.set_xlim(xmin * 0.8, xmax * 1.2)
         else:
-            counts, x_cent, xmin, xmax, was_logx = binned(data)
-            if was_logx:
-                ax.set_xscale("log")
-                ax.set_xlabel("ns (log scale)")
-                ax.set_xlim(xmin * 0.8, xmax * 1.2)
-            else:
-                ax.set_xlabel("ns")
-                if max_ns is not None:
-                    ax.set_xlim(0, max_ns)
+            counts, x_cent, _xmin, _xmax, _was_logx = binned(data)
+            y = np.asarray(counts, dtype=np.float64)
+            if logx:
+                y = np.where(y > 0, y, np.nan)
             if style == "line":
                 ax.plot(
                     x_cent,
-                    counts,
+                    y,
                     color=color,
                     marker="o",
                     markersize=4,
@@ -275,18 +272,25 @@ def run_png(
             else:  # dots
                 ax.plot(
                     x_cent,
-                    counts,
+                    y,
                     "o",
                     color=color,
                     markersize=5,
                     linestyle="none",
                 )
             ax.grid(True, **grid_kws)
+        if logx:
+            ax.set_xscale("log")
+            if style in ("kde", "line", "dots"):
+                ax.set_yscale("log")
+            # style == "bars": ax.hist(..., log=True) set the y axis to log
+        ax.set_xlabel("Latency (ns)")
         ax.set_title(ptitle)
+    axes[0].set_xlim(x_lo, x_hi)
     if style == "kde":
         axes[0].set_ylabel("probability density")
     else:
-        axes[0].set_ylabel("count")
+        axes[0].set_ylabel("samples")
     fig.suptitle(title)
     fig.tight_layout()
     fig.savefig(out, dpi=150)
@@ -318,13 +322,22 @@ def main() -> int:
     ap.add_argument(
         "--logx",
         action="store_true",
-        help="Log scale on the latency (x) axis; bins are log-spaced in ns (PNG) or in ASCII",
+        help="Log scale for latency: PNG uses log x (and log y for counts, i.e. log–log) "
+        "with log-spaced x bins; ASCII uses log-spaced bins only",
     )
     ap.add_argument(
         "--style",
         choices=("bars", "line", "dots", "kde"),
         default="bars",
         help="bars: histogram; line/dots: bin centers; kde: smooth density (requires scipy)",
+    )
+    ap.add_argument(
+        "--xmax-pct",
+        type=float,
+        default=99.5,
+        metavar="PCT",
+        help="PNG x-axis max = PCT percentile of combined e2e+queue (default 99.5, tighter view). "
+        "Use 100 to include the global max sample on the x-axis.",
     )
     args = ap.parse_args()
 
@@ -352,6 +365,7 @@ def main() -> int:
             args.max_ns,
             args.logx,
             args.style,
+            args.xmax_pct,
         )
     except ImportError as e:
         print("PNG: pip install matplotlib numpy", file=sys.stderr)
