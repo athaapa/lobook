@@ -117,6 +117,8 @@ On x86, acquire and release both compile to plain `mov` instructions (the same i
 
 `head_` and `tail_` are each `alignas(64)` so they sit on separate cache lines. Without this, both indices would share a 64-byte line, and every producer write to `tail_` would transition that line to Modified in MESI, invalidating the consumer's copy. The consumer's next load of `head_` would then take a coherence miss (roughly 30-50ns on the same socket and ~100ns cross-socket) even though the producer never touched `head_` itself. This is the classic false-sharing pattern: two logically independent variables forced into the same coherence unit, ping-ponging the line between cores. On a 180ns p50 budget, eating one of those misses per push would dominate the entire latency. C++17 has std::hardware_destructive_interference_size for this, but on every x86 chip I care about it's 64 bytes, so I hardcoded it.
 
+The buffer slots themselves are not padded to cache-line boundaries. At 32 bytes per slot, adjacent slots share a cache line, so a producer write to slot N+1 can invalidate the line the consumer is reading from slot N. At 1µs pacing this doesn't fire in practice because the consumer drains each slot long before the producer reaches the next one, but under tight pacing it's a real coherence cost. Padding slots to 64 bytes eliminates it at the cost of doubling the buffer's memory footprint.
+
 ### Getting it right
 While running the benchmark, I ran into a few issues that resulted in some interesting behavior.
 
