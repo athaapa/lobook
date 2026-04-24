@@ -140,7 +140,7 @@ After fixing pacing, p50 dropped to ~450ns on `attu` (UW's shared Linux cluster)
 
 The tell here was bimodality. It wasn't that everything got slower. Most messages were fast, but 1% of them were 1000× slower. And the p99 spikes were consistently in the 1-4ms range, which lines up with a scheduler time slice.
 
-That's exactly what was happening. `attu` is a shared machine, so other users' processes are always running. My consumer is in a tight pop() spin-wait, burning 100% of a CPU. From the OS scheduler's perspective, it looks like a well-behaved CPU-bound thread, so it gets preempted at the normal tick boundary to give some other user's thread a slice. When the consumer is off-CPU, messages pile up in the queue for ~1-4ms (exactly one scheduler tick) until the scheduler rotates it back on.
+That's exactly what was happening. `attu` is a shared machine, so other users' processes are always running. My consumer is in a tight `pop()` spin-wait, burning 100% of a CPU. From the OS scheduler's perspective, it looks like a well-behaved CPU-bound thread, so it gets preempted at the normal tick boundary to give some other user's thread a slice. When the consumer is off-CPU, messages pile up in the queue for ~1-4ms (exactly one scheduler tick) until the scheduler rotates it back on.
 
 `pthread_setaffinity_np` pins the thread to a core, but on a shared box the scheduler still schedules _other_ threads onto that same core. Pinning doesn't "own" the core, it just tells the scheduler where to put your thread when it runs.
 
