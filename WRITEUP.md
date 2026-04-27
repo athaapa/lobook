@@ -1,7 +1,7 @@
 # Lobook
 
 ## Overview
-I have spent the past four months writing, refining, and testing this limit order book. This document summarizes my most important findings.
+This writeup summarizes the design decisions, measurements, and tradeoffs behind `lobook`, a low-latency C++ limit order book and matching engine.
 
 The architecture consists of one producer thread (the network ingress simulator) that pushes timestamped `OrderMessage`s into an SPSC ring buffer and a matching engine that pops them on a pinned consumer core, runs them against the book, and records per-message end-to-end latency.
 

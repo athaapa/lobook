@@ -6,6 +6,8 @@ End-to-end p50 latency: **180 ns** (lock-free SPSC + matching engine, 1 µs paci
 
 All numbers were measured on bare-metal AMD Ryzen 5 2600 @ 3.4 GHz, `isolcpus=6-11`, Fedora kernel 6.19, gcc 15.2 `-O3 -D_GNU_SOURCE`.
 
+For a deeper explanation of the design decisions, benchmarks, and tradeoffs, see [WRITEUP.md](./WRITEUP.md).
+
 ## Architecture
 
 One producer thread pushes timestamped `OrderMessage`s into a lock-free SPSC ring buffer. The matching engine pops them on a pinned consumer core, runs them against the book, and records per-message end-to-end latency.
