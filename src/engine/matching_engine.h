@@ -48,7 +48,9 @@ public:
         // sentinel message fixes this by going through the queue itself. The flag approach could
         // work but you would need to call cv_.notify_one() at which point you've essentially just
         // recreated the sentinel pattern.
-        queue_.push({ Type::SHUTDOWN });
+        OrderMessage msg {};
+        msg.type = Type::SHUTDOWN;
+        queue_.push(msg);
         thread_.join();
     }
 

@@ -93,12 +93,14 @@ namespace {
         std::vector<OrderMessage> workload;
         workload.reserve(args.workload);
         for (uint64_t i = 0; i < args.workload; ++i) {
-            workload.push_back({ .type = Type::SUBMIT,
-                .id = i,
-                .price = 100,
-                .qty = 10,
-                .is_buy = true,
-                .timestamp = 0 });
+            OrderMessage msg {};
+            msg.id = i;
+            msg.price = 100;
+            msg.qty = 10;
+            msg.timestamp = 0;
+            msg.is_buy = true;
+            msg.type = Type::SUBMIT;
+            workload.push_back(msg);
         }
 
         std::thread network_thread([&]() {
